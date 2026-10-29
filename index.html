@@ -8,45 +8,48 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap">
 <style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
 <style>
-/* 版面：沿用公告簽收系統的色系與字體。手機優先單欄：上方切換「申請人／老闆審核」，
+/* 版面：請款系統自己的「帳簿藍」配色與原本的明體標題，刻意跟公告簽收系統（綠色）分開。手機優先單欄：上方切換「申請人／老闆審核」，
    下方是請款單列表；點開一張就是一張「請款單」紙本樣式，底部三格：申請人・核准・付款。
-   顏色固定意思：黃＝等老闆、藍＝核准待付款、綠＝已付款、紅＝退回。 */
+   顏色固定意思：黃＝等老闆、紫＝核准待付款、綠＝已付款、紅＝退回。 */
 :root{
-  --bg:#EDF1EF; --surface:#FFFFFF; --surface-2:#F4F7F5; --ink:#14251F; --muted:#586962; --line:#D3DCD7;
-  --accent:#0E6A5B; --accent-ink:#FFFFFF; --accent-soft:#DCEDE8;
-  --seal:#BF3A2B; --seal-soft:#F8E3DF;
-  --ok:#1C7448; --ok-soft:#DDF1E5; --info:#1F5FA8; --info-soft:#DEE9F7; --warn:#8A5A00; --warn-soft:#FAEDCB;
-  --paper:#FFFFFF; --paper-ink:#14251F; --paper-line:#C9D3CE; --scrim:rgba(10,20,16,.82);
+  --bg:#EEF0F6; --surface:#FFFFFF; --surface-2:#F3F4F9; --ink:#161B33; --muted:#5A6078; --line:#D5D8E6;
+  --accent:#2E3F94; --accent-ink:#FFFFFF; --accent-soft:#E1E5F6;
+  --band:#1F2A6B; --band-ink:#FFFFFF; --band-muted:#B9C0E6; --gold:#D4A23A;
+  --seal:#B8322A; --seal-soft:#F8E2DF;
+  --ok:#1D7350; --ok-soft:#DCF0E5; --info:#7A3FA8; --info-soft:#EFE4F7; --warn:#8A5A00; --warn-soft:#FAEDCB;
+  --paper:#FFFFFF; --paper-ink:#14251F; --paper-line:#CDD1E0; --scrim:rgba(10,20,16,.82);
   --display:"Noto Serif TC","Songti TC","PMingLiU",serif;
   --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   --r:10px;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0E1513; --surface:#17201D; --surface-2:#1D2824; --ink:#E6EEEA; --muted:#9AABA4; --line:#2C3934;
-    --accent:#4DBFAB; --accent-ink:#06211C; --accent-soft:#16332D;
+    --bg:#10131F; --surface:#181C2C; --surface-2:#1F2436; --ink:#E7E9F3; --muted:#9BA0B8; --line:#2D3350;
+    --accent:#9DAEFF; --accent-ink:#0E1433; --accent-soft:#232B52;
+    --band:#1B2350; --band-ink:#F2F3FA; --band-muted:#A9B1DC; --gold:#D4A23A;
     --seal:#F07363; --seal-soft:#3A1C18;
-    --ok:#5BC98D; --ok-soft:#15301F; --info:#84B6F0; --info-soft:#17283E; --warn:#E6B54E; --warn-soft:#382C10;
-    --paper:#F7F9F8; --paper-ink:#14251F; --paper-line:#C9D3CE; --scrim:rgba(0,0,0,.86); color-scheme:dark;
+    --ok:#5BC98D; --ok-soft:#15301F; --info:#C79BEF; --info-soft:#2E2140; --warn:#E6B54E; --warn-soft:#382C10;
+    --paper:#F7F9F8; --paper-ink:#14251F; --paper-line:#CDD1E0; --scrim:rgba(0,0,0,.86); color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0E1513; --surface:#17201D; --surface-2:#1D2824; --ink:#E6EEEA; --muted:#9AABA4; --line:#2C3934;
-  --accent:#4DBFAB; --accent-ink:#06211C; --accent-soft:#16332D;
+  --bg:#10131F; --surface:#181C2C; --surface-2:#1F2436; --ink:#E7E9F3; --muted:#9BA0B8; --line:#2D3350;
+  --accent:#9DAEFF; --accent-ink:#0E1433; --accent-soft:#232B52;
+  --band:#1B2350; --band-ink:#F2F3FA; --band-muted:#A9B1DC; --gold:#D4A23A;
   --seal:#F07363; --seal-soft:#3A1C18;
-  --ok:#5BC98D; --ok-soft:#15301F; --info:#84B6F0; --info-soft:#17283E; --warn:#E6B54E; --warn-soft:#382C10;
-  --paper:#F7F9F8; --paper-ink:#14251F; --paper-line:#C9D3CE; --scrim:rgba(0,0,0,.86); color-scheme:dark;
+  --ok:#5BC98D; --ok-soft:#15301F; --info:#C79BEF; --info-soft:#2E2140; --warn:#E6B54E; --warn-soft:#382C10;
+  --paper:#F7F9F8; --paper-ink:#14251F; --paper-line:#CDD1E0; --scrim:rgba(0,0,0,.86); color-scheme:dark;
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65}
 .app{max-width:880px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 56px;display:flex;flex-direction:column;gap:16px}
-.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;background:var(--band);color:var(--band-ink);border-radius:var(--r);padding:14px 16px;border-bottom:4px solid var(--gold)}
 .brand{display:flex;align-items:baseline;gap:10px;min-width:0;flex-wrap:wrap}
 .brand b{font-family:var(--display);font-weight:900;font-size:21px;letter-spacing:.05em}
-.brand span{color:var(--muted);font-size:13px}
-.switch{display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
-.switch button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:15px;padding:8px 16px;border-radius:999px;cursor:pointer}
-.switch button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.brand span{color:var(--band-muted);font-size:13px}
+.switch{display:flex;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:3px;background:rgba(255,255,255,.1)}
+.switch button{border:0;background:transparent;color:var(--band-muted);font:inherit;font-size:15px;padding:8px 16px;border-radius:999px;cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--gold);color:#1B1A10;font-weight:700}
 .note{font-size:13px;color:var(--warn);background:var(--warn-soft);border-radius:var(--r);padding:8px 12px}
 button:focus-visible,select:focus-visible,canvas:focus-visible,input:focus-visible,textarea:focus-visible,.card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 h1{font-family:var(--display);font-weight:900;font-size:24px;line-height:1.35;margin:0;text-wrap:balance}
@@ -144,7 +147,7 @@ textarea{min-height:84px;resize:vertical}
 .signbox .hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#8A949A;pointer-events:none;font-size:15px}
 .signbox.sm{height:120px}
 .signbox.tap{width:100%;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px;color:#5E6B66}
-.signbox.tap .hint{position:static;font-size:16px;font-weight:700;color:#0E6A5B}
+.signbox.tap .hint{position:static;font-size:16px;font-weight:700;color:#2E3F94}
 .signbox.tap img{max-height:80px;max-width:100%}
 .signbox.tap.done{border-style:solid}
 .signbox.tap .redo{font-size:12px;color:#5E6B66;font-weight:400}
@@ -188,7 +191,7 @@ var LIVE = !!API;
 
 var CATS = ["進貨貨款","維修工程","租金水電","廣告行銷","設備採購","員工代墊","其他"];
 var UNITS = ["總部","鼎山","陽明","後昌","仁雄","凱旋","五店分攤"];
-var METHODS = ["匯款","現金","支票"];
+var METHODS = ["匯款","現金"];
 var ST = {pending:["等老闆核准","warn"], approved:["已核准・待付款","info"], rejected:["已退回","seal"], paid:["已付款","ok"], withdrawn:["已撤回","muted"]};
 var MAX_PHOTOS = 6;
 
@@ -365,7 +368,7 @@ function card(r){
   return '<button type="button" class="card" data-act="open" data-id="'+esc(r.id)+'">'+
     '<span class="t">'+(r.urgent&&(r.status==="pending"||r.status==="approved")?'<span class="urgent">急</span>':'')+esc(r.payee)+(r.demo?' <span class="demo">範例</span>':'')+'</span>'+
     '<span class="a">'+money(r.amount)+'</span>'+
-    '<span class="m">'+esc(r.no)+'・'+esc(r.cat)+'・'+esc(r.unit)+'・'+esc(r.by)+' 送出 '+fmt(r.at)+'<br>'+esc(r.purpose)+'</span>'+
+    '<span class="m">'+esc(r.no)+'・'+esc(r.cat)+(r.unit?'・'+esc(r.unit):'')+'・'+esc(r.by)+' 送出 '+fmt(r.at)+'<br>'+esc(r.purpose)+'</span>'+
     '<span class="s"><span class="pill '+st[1]+'">'+st[0]+'</span></span></button>';
 }
 function formView(){
@@ -373,8 +376,7 @@ function formView(){
   var payees={}; S.reqs.forEach(function(r){ if(r.payee) payees[r.payee]=1; });
   var h='<section class="panel"><div class="eyebrow">'+(f.editId?"修改後重新送出":"新增請款")+'</div><h1>'+(f.editId?"修改請款單":"填寫請款單")+'</h1>';
   h+='<label class="f" for="f-by">申請人<select id="f-by"><option value="">請選擇</option>'+S.names.map(function(n){ return '<option'+(f.by===n?' selected':'')+'>'+esc(n)+'</option>'; }).join("")+'</select></label>';
-  h+='<div class="grid2"><label class="f" for="f-cat">請款類別<select id="f-cat"><option value="">請選擇</option>'+CATS.map(function(c){ return '<option'+(f.cat===c?' selected':'')+'>'+c+'</option>'; }).join("")+'</select></label>'+
-    '<label class="f" for="f-unit">這筆錢算哪一店的<span class="hint">總部自己用的選總部；五家店一起用的選五店分攤</span><select id="f-unit"><option value="">請選擇</option>'+UNITS.map(function(c){ return '<option'+(f.unit===c?' selected':'')+'>'+c+'</option>'; }).join("")+'</select></label></div>';
+  h+='<label class="f" for="f-cat">請款類別<select id="f-cat"><option value="">請選擇</option>'+CATS.map(function(c){ return '<option'+(f.cat===c?' selected':'')+'>'+c+'</option>'; }).join("")+'</select></label>';
   h+='<div class="grid2"><label class="f" for="f-payee">受款對象<span class="hint">廠商名稱或個人姓名，打過的會自動帶出</span><input type="text" id="f-payee" list="payees" value="'+esc(f.payee)+'" autocomplete="off"></label>'+
     '<datalist id="payees">'+Object.keys(payees).map(function(p){ return '<option value="'+esc(p)+'">'; }).join("")+'</datalist>'+
     '<label class="f" for="f-amount">金額（新台幣，含稅）<span class="hint">只填數字</span><input type="text" inputmode="numeric" id="f-amount" value="'+esc(f.amount)+'" autocomplete="off"></label></div>';
@@ -399,7 +401,7 @@ function slip(r){
   var h='<article class="slip"><div class="head"><b>請款單</b><span>單號 '+esc(r.no)+'<br>'+fmt(r.at)+'</span></div>';
   h+='<div class="row"><span class="pill '+st[1]+'">'+st[0]+'</span>'+(r.urgent?'<span class="urgent">急件</span>':'')+(r.demo?'<span class="demo">範例</span>':'')+'</div>';
   h+='<table><tr><th>受款對象</th><td><b>'+esc(r.payee)+'</b></td></tr><tr><th>金額</th><td class="big">'+money(r.amount)+'</td></tr>'+
-    '<tr><th>請款類別</th><td>'+esc(r.cat)+'</td></tr><tr><th>費用算在</th><td>'+esc(r.unit)+'</td></tr><tr><th>用途說明</th><td>'+esc(r.purpose)+'</td></tr>'+
+    '<tr><th>請款類別</th><td>'+esc(r.cat)+'</td></tr>'+(r.unit?'<tr><th>費用算在</th><td>'+esc(r.unit)+'</td></tr>':'')+'<tr><th>用途說明</th><td>'+esc(r.purpose)+'</td></tr>'+
     '<tr><th>付款方式</th><td>'+esc(r.method)+(r.method==="匯款"?'<div class="cap">'+esc(r.bank)+'<br>帳號 <span class="num">'+esc(r.acct)+'</span>　戶名 '+esc(r.holder)+'</div>':'')+'</td></tr>'+
     '<tr><th>希望付款日</th><td>'+(r.due?fmtD(r.due):'<span class="cap">沒有指定</span>')+'</td></tr>';
   if(r.approveNote) h+='<tr><th>老闆備註</th><td>'+esc(r.approveNote)+'</td></tr>';
@@ -524,7 +526,7 @@ function autofill(name){
 }
 function saveForm(){
   var f=S.form; if(!f || !$("f-cat")) return;
-  f.by=val("f-by"); f.cat=val("f-cat"); f.unit=val("f-unit"); f.payee=val("f-payee"); f.amount=val("f-amount"); f.purpose=val("f-purpose"); f.due=val("f-due");
+  f.by=val("f-by"); f.cat=val("f-cat"); f.payee=val("f-payee"); f.amount=val("f-amount"); f.purpose=val("f-purpose"); f.due=val("f-due");
   f.urgent=!!($("f-urgent")&&$("f-urgent").checked);
   if($("f-bank")){ f.bank=val("f-bank"); f.acct=val("f-acct"); f.holder=val("f-holder"); }
 }
@@ -636,7 +638,7 @@ function failReload(e){ S.msg=errText(e); load(); }
 function submitForm(){
   if(S.busy) return; saveForm(); var f=S.form, m=$("f-msg");
   var amt=Number(String(f.amount).replace(/[,，\s]/g,""));
-  var miss=[]; if(!f.by) miss.push("申請人"); if(!f.cat) miss.push("請款類別"); if(!f.unit) miss.push("這筆錢算哪一店的"); if(!f.payee) miss.push("受款對象"); if(!(amt>0)) miss.push("金額"); if(!f.purpose) miss.push("用途說明");
+  var miss=[]; if(!f.by) miss.push("申請人"); if(!f.cat) miss.push("請款類別"); if(!f.payee) miss.push("受款對象"); if(!(amt>0)) miss.push("金額"); if(!f.purpose) miss.push("用途說明");
   if(f.method==="匯款"){ if(!f.bank) miss.push("銀行"); if(!f.acct) miss.push("帳號"); if(!f.holder) miss.push("戶名"); }
   if(!padInked("f-sig")) miss.push("申請人簽名");
   if(miss.length){ m.hidden=false; m.textContent="還沒填："+miss.join("、"); m.scrollIntoView({block:"center"}); return; }
