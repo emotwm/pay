@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>倚盟請款簽核</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<style>
+/* 版面：沿用公告簽收系統的色系與字體。手機優先單欄：上方切換「申請人／老闆審核」，
+   下方是請款單列表；點開一張就是一張「請款單」紙本樣式，底部三格：申請人・核准・付款。
+   顏色固定意思：黃＝等老闆、藍＝核准待付款、綠＝已付款、紅＝退回。 */
+:root{
+  --bg:#EDF1EF; --surface:#FFFFFF; --surface-2:#F4F7F5; --ink:#14251F; --muted:#586962; --line:#D3DCD7;
+  --accent:#0E6A5B; --accent-ink:#FFFFFF; --accent-soft:#DCEDE8;
+  --seal:#BF3A2B; --seal-soft:#F8E3DF;
+  --ok:#1C7448; --ok-soft:#DDF1E5; --info:#1F5FA8; --info-soft:#DEE9F7; --warn:#8A5A00; --warn-soft:#FAEDCB;
+  --paper:#FFFFFF; --paper-ink:#14251F; --paper-line:#C9D3CE; --scrim:rgba(10,20,16,.82);
+  --display:"Noto Serif TC","Songti TC","PMingLiU",serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1513; --surface:#17201D; --surface-2:#1D2824; --ink:#E6EEEA; --muted:#9AABA4; --line:#2C3934;
+    --accent:#4DBFAB; --accent-ink:#06211C; --accent-soft:#16332D;
+    --seal:#F07363; --seal-soft:#3A1C18;
+    --ok:#5BC98D; --ok-soft:#15301F; --info:#84B6F0; --info-soft:#17283E; --warn:#E6B54E; --warn-soft:#382C10;
+    --paper:#F7F9F8; --paper-ink:#14251F; --paper-line:#C9D3CE; --scrim:rgba(0,0,0,.86); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1513; --surface:#17201D; --surface-2:#1D2824; --ink:#E6EEEA; --muted:#9AABA4; --line:#2C3934;
+  --accent:#4DBFAB; --accent-ink:#06211C; --accent-soft:#16332D;
+  --seal:#F07363; --seal-soft:#3A1C18;
+  --ok:#5BC98D; --ok-soft:#15301F; --info:#84B6F0; --info-soft:#17283E; --warn:#E6B54E; --warn-soft:#382C10;
+  --paper:#F7F9F8; --paper-ink:#14251F; --paper-line:#C9D3CE; --scrim:rgba(0,0,0,.86); color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65}
+.app{max-width:880px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 56px;display:flex;flex-direction:column;gap:16px}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0;flex-wrap:wrap}
+.brand b{font-family:var(--display);font-weight:900;font-size:21px;letter-spacing:.05em}
+.brand span{color:var(--muted);font-size:13px}
+.switch{display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
+.switch button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:15px;padding:8px 16px;border-radius:999px;cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.note{font-size:13px;color:var(--warn);background:var(--warn-soft);border-radius:var(--r);padding:8px 12px}
+button:focus-visible,select:focus-visible,canvas:focus-visible,input:focus-visible,textarea:focus-visible,.card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1{font-family:var(--display);font-weight:900;font-size:24px;line-height:1.35;margin:0;text-wrap:balance}
+h2{font-family:var(--display);font-weight:700;font-size:18px;margin:0;text-wrap:balance}
+.eyebrow{font-size:12px;letter-spacing:.14em;color:var(--accent);font-weight:700}
+.muted{color:var(--muted)} .small{font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+.narrow{max-width:520px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.grow{flex:1 1 auto}
+.btn{font:inherit;font-weight:700;font-size:16px;border-radius:var(--r);border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:11px 18px;cursor:pointer;min-height:48px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.quiet{background:transparent;color:var(--accent)}
+.btn.danger{background:var(--seal);border-color:var(--seal);color:#fff}
+.btn.dangerq{background:transparent;border-color:var(--seal);color:var(--seal)}
+.btn.sm{font-size:14px;min-height:40px;padding:7px 14px}
+.link{font:inherit;background:none;border:0;color:var(--accent);padding:6px 0;cursor:pointer;font-weight:700}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:700;min-width:0}
+label.f .hint{font-weight:400;color:var(--muted);font-size:12px}
+input[type=text],input[type=password],input[type=date],input[type=number],input[type=search],select,textarea{font:inherit;font-weight:400;font-size:16px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+textarea{min-height:84px;resize:vertical}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:560px){.grid2{grid-template-columns:1fr}}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg button{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:7px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700}
+.check{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+.check input{width:20px;height:20px;accent-color:var(--seal)}
+.err{color:var(--seal);font-weight:700;font-size:14px}
+.okmsg{color:var(--ok);font-weight:700;font-size:14px}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tabs button{font:inherit;font-size:15px;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:10px 14px;cursor:pointer;margin-bottom:-1px}
+.tabs button[aria-pressed="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--accent)}
+.who{margin-left:auto;align-self:center;font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.info{background:var(--info-soft);color:var(--info)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.seal{background:var(--seal-soft);color:var(--seal)}
+.pill.muted{background:var(--surface-2);color:var(--muted)}
+.urgent{font-size:12px;font-weight:900;color:#fff;background:var(--seal);border-radius:4px;padding:1px 7px;letter-spacing:.1em}
+.demo{font-size:11px;font-weight:700;color:var(--muted);border:1px dashed var(--line);border-radius:4px;padding:0 6px}
+
+.list{display:flex;flex-direction:column;gap:10px}
+.card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
+.card:hover{border-color:var(--accent)}
+.card .t{font-weight:700;font-size:16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+.card .a{font-weight:700;font-size:18px;text-align:right;font-variant-numeric:tabular-nums}
+.card .m{font-size:13px;color:var(--muted);min-width:0;overflow-wrap:anywhere}
+.card .s{text-align:right}
+.empty{padding:28px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r)}
+.sum{display:flex;flex-wrap:wrap;gap:10px}
+.sum div{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;flex:1 1 150px}
+.sum b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.sum span{font-size:13px;color:var(--muted)}
+
+.thumbs{display:flex;flex-wrap:wrap;gap:10px}
+.thumb{position:relative;width:96px;height:96px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--surface-2);padding:0;cursor:pointer}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .x{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:var(--scrim);color:#fff;font-size:15px;cursor:pointer;line-height:1}
+.thumb.add{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--accent);font-size:13px;font-weight:700;border-style:dashed}
+.thumb.add b{font-size:28px;line-height:1}
+.thumb .ld{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}
+
+/* 請款單紙本 */
+.slip{background:var(--paper);color:var(--paper-ink);border:1px solid var(--paper-line);border-radius:4px;padding:22px 20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 0 var(--paper-line),0 10px 24px -18px rgba(0,0,0,.4)}
+.slip .head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px;border-bottom:3px double var(--paper-ink);padding-bottom:10px}
+.slip .head b{font-family:var(--display);font-weight:900;font-size:24px;letter-spacing:.3em}
+.slip .head span{font-size:13px;font-variant-numeric:tabular-nums}
+.slip table{width:100%;border-collapse:collapse;font-size:15px}
+.slip th{width:7.5em;text-align:left;font-weight:700;color:#4B5C55;padding:8px 10px 8px 0;vertical-align:top;border-bottom:1px solid var(--paper-line);white-space:nowrap}
+.slip td{padding:8px 0;border-bottom:1px solid var(--paper-line);overflow-wrap:anywhere}
+.slip .big{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}
+.slip .cap{font-size:13px;color:#4B5C55}
+.boxes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--paper-ink)}
+.boxes > div{border-left:1px solid var(--paper-ink);display:flex;flex-direction:column;min-height:132px}
+.boxes > div:first-child{border-left:0}
+.boxes h3{margin:0;font-size:13px;font-weight:700;text-align:center;padding:4px;border-bottom:1px solid var(--paper-ink);letter-spacing:.4em}
+.boxes .in{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 6px;gap:4px;text-align:center;font-size:13px}
+.boxes .in img{max-height:64px;width:auto;max-width:100%}
+.boxes .nm{font-family:var(--display);font-weight:700;font-size:17px}
+.boxes .dt{font-size:11px;color:#4B5C55;font-variant-numeric:tabular-nums}
+.boxes .stamp{color:#BF3A2B;border:2px solid #BF3A2B;border-radius:4px;padding:2px 8px;font-weight:900;letter-spacing:.2em;transform:rotate(-6deg);font-size:14px}
+.boxes .wait{color:#8A949A}
+@media (max-width:440px){.boxes h3{letter-spacing:.1em}.boxes .in img{max-height:50px}}
+.reject{background:var(--seal-soft);color:var(--seal);border-radius:var(--r);padding:12px 14px;font-size:14px}
+.timeline{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+.timeline li{display:grid;grid-template-columns:8.5em minmax(0,1fr);gap:8px}
+.timeline span{font-variant-numeric:tabular-nums}
+
+.signbox{position:relative;background:#fff;border:1px dashed var(--paper-line);border-radius:8px;height:180px}
+.signbox canvas{width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+.signbox .hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#8A949A;pointer-events:none;font-size:15px}
+.signbox.sm{height:120px}
+.signbox.tap{width:100%;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px;color:#5E6B66}
+.signbox.tap .hint{position:static;font-size:16px;font-weight:700;color:#0E6A5B}
+.signbox.tap img{max-height:80px;max-width:100%}
+.signbox.tap.done{border-style:solid}
+.signbox.tap .redo{font-size:12px;color:#5E6B66;font-weight:400}
+.signer{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+.signer .sbar{display:flex;align-items:center;gap:8px}
+.signer .sbar b{flex:1;text-align:center;font-family:var(--display);font-size:18px}
+.signer .sarea{position:relative;flex:1;min-height:0;background:#fff;border-radius:10px;overflow:hidden}
+.signer canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.signer .shint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#8A949A;font-size:18px;pointer-events:none}
+.signer .shint small{font-size:13px;margin-top:6px}
+.signer .sline{position:absolute;left:8%;right:8%;bottom:28%;border-bottom:1px dashed #C9D3CE;pointer-events:none}
+.padlabel{display:flex;flex-direction:column;gap:8px;font-size:14px;font-weight:700}
+.padlabel .hint{font-weight:400;color:var(--muted);font-size:12px}
+.sigprev{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;justify-content:center}
+.sigprev img{max-height:70px}
+
+.viewer{position:fixed;inset:0;background:var(--scrim);z-index:50;display:flex;flex-direction:column;padding:calc(12px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+.viewer .bar{display:flex;justify-content:flex-end}
+.viewer .bar button{font:inherit;font-weight:700;background:#fff;color:#14251F;border:0;border-radius:999px;padding:8px 18px;cursor:pointer}
+.viewer .img{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;overflow:auto}
+.viewer img{max-width:100%;max-height:100%;object-fit:contain}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div class="signer" id="signer" hidden role="dialog" aria-modal="true" aria-labelledby="signer-title">
+  <div class="sbar"><button type="button" class="btn quiet sm" data-act="padCancel">取消</button><b id="signer-title">簽名</b><button type="button" class="btn quiet sm" data-act="padRedo">清除</button><button type="button" class="btn sm" id="signer-done" data-act="padDone" disabled>完成</button></div>
+  <div class="sarea"><canvas id="signer-pad" aria-label="簽名板"></canvas><div class="shint" id="signer-hint">用手指在白色區域簽名<br><small>橫拿手機簽起來更順手</small></div><div class="sline"></div></div>
+</div>
+<div class="viewer" id="viewer" hidden><div class="bar"><button type="button" data-act="closeViewer">關閉</button></div><div class="img"><img id="viewer-img" alt="單據照片"></div></div>
+
+<script>
+/* ===== 設定 =====
+   正式上線時，把 Apps Script 部署後的網址貼在 API 這裡。
+   空白＝樣板模式：資料只存在這台裝置，方便先試用。 */
+var API = "https://script.google.com/macros/s/AKfycby2SrjBNoIhUH4Jshf0bJ7I-wfgnHTkgB8v8iHtMamwG9Ob1eP66uTDZkLtS1BU-LAgNA/exec";
+var LIVE = !!API;
+
+var CATS = ["進貨貨款","維修工程","租金水電","廣告行銷","設備採購","員工代墊","其他"];
+var UNITS = ["總部","鼎山","陽明","後昌","仁雄","凱旋","五店分攤"];
+var METHODS = ["匯款","現金","支票"];
+var ST = {pending:["等老闆核准","warn"], approved:["已核准・待付款","info"], rejected:["已退回","seal"], paid:["已付款","ok"], withdrawn:["已撤回","muted"]};
+var MAX_PHOTOS = 6;
+
+/* ===== 小工具 ===== */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+function money(n){ n=Math.round(Number(n)||0); return "NT$ "+n.toLocaleString("en-US"); }
+function pad(n){ return ("0"+n).slice(-2); }
+function today(){ var d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function fmt(t){ if(!t) return ""; var d=new Date(t); return (d.getFullYear()-1911)+"/"+pad(d.getMonth()+1)+"/"+pad(d.getDate())+" "+pad(d.getHours())+":"+pad(d.getMinutes()); }
+function fmtD(s){ if(!s) return ""; var p=String(s).split("-"); if(p.length<3) return s; return (Number(p[0])-1911)+"/"+p[1]+"/"+p[2]; }
+function $(id){ return document.getElementById(id); }
+function val(id){ var e=$(id); return e?String(e.value||"").trim():""; }
+
+/* ===== 本機樣板資料（API 空白時才用）===== */
+var LKEY="ym-pay-demo-v1", SKEY="ym-pay-session";
+function demoReceipt(title, lines, total){
+  try{
+    var c=document.createElement("canvas"); c.width=560; c.height=760; var x=c.getContext("2d");
+    x.fillStyle="#fbfaf6"; x.fillRect(0,0,560,760);
+    x.fillStyle="#222"; x.font="bold 34px sans-serif"; x.textAlign="center"; x.fillText(title,280,70);
+    x.font="18px sans-serif"; x.fillText("（範例單據・非真實資料）",280,104);
+    x.textAlign="left"; x.font="22px sans-serif";
+    var y=170; lines.forEach(function(l){ x.fillText(l[0],50,y); x.textAlign="right"; x.fillText(l[1],510,y); x.textAlign="left"; y+=46; });
+    x.strokeStyle="#999"; x.setLineDash([6,6]); x.beginPath(); x.moveTo(40,y); x.lineTo(520,y); x.stroke();
+    x.font="bold 28px sans-serif"; x.fillText("合計",50,y+50); x.textAlign="right"; x.fillText(total,510,y+50);
+    return c.toDataURL("image/jpeg",.7);
+  }catch(e){ return ""; }
+}
+function seedDB(){
+  var now=Date.now(), H=3600e3, D=24*H;
+  var db={reqs:[], photos:{}, sigs:{}, sigVer:0, pin:"1234", names:["姚東妍","廖宛如","曾芳新"], seq:{}, fails:0};
+  function add(o, img){
+    var id="r"+(now-o.ago); var ph=[];
+    if(img){ var pid="p"+id; db.photos[pid]=img; ph.push(pid); }
+    var at=now-o.ago, d=new Date(at), key=(d.getFullYear()-1911)+pad(d.getMonth()+1)+pad(d.getDate());
+    db.seq[key]=(db.seq[key]||0)+1;
+    var r={id:id, no:key+"-"+pad(db.seq[key]), status:"pending", at:at, by:o.by, cat:o.cat, unit:o.unit, payee:o.payee, amount:o.amount,
+      method:o.method, bank:o.bank||"", acct:o.acct||"", holder:o.holder||"", purpose:o.purpose, due:o.due||"", urgent:!!o.urgent,
+      photos:ph, approvedAt:0, approveNote:"", sigVer:0, rejectReason:"", rejectedAt:0, paidAt:"", paidNote:"", paidBy:"", ver:1, demo:true,
+      log:[{t:at, who:o.by, what:"送出請款"}]};
+    db.reqs.unshift(r); return r;
+  }
+  var r1=add({ago:5*D+3*H, by:"廖宛如", cat:"租金水電", unit:"鼎山", payee:"鼎山店房東 王先生", amount:68000, method:"匯款", bank:"高雄銀行 鼎山分行", acct:"203-10-0012345", holder:"王大明", purpose:"鼎山店 11 月份店租", due:shift(3)},
+    demoReceipt("租金收據",[["鼎山店 11 月租金","68,000"]],"68,000"));
+  r1.status="paid"; r1.approvedAt=r1.at+20*H; r1.approveNote=""; r1.paidAt=shift(-2); r1.paidBy="廖宛如"; r1.paidNote="網銀轉帳完成"; r1.ver=3;
+  r1.log.push({t:r1.approvedAt, who:"老闆", what:"核准"},{t:r1.approvedAt+30*H, who:"廖宛如", what:"登記已付款"});
+  var r2=add({ago:2*D+5*H, by:"曾芳新", cat:"維修工程", unit:"仁雄", payee:"佳泰冷氣工程行", amount:12500, method:"匯款", bank:"台新銀行 三民分行", acct:"2011-01-0098765", holder:"佳泰冷氣工程行", purpose:"仁雄店冷氣壓縮機維修，含工資與零件", due:shift(5)},
+    demoReceipt("佳泰冷氣工程行",[["壓縮機更換","9,800"],["工資","2,000"],["冷媒補充","700"]],"12,500"));
+  r2.status="approved"; r2.approvedAt=r2.at+26*H; r2.approveNote="下次維修先比兩家價"; r2.ver=2; r2.log.push({t:r2.approvedAt, who:"老闆", what:"核准"});
+  var r3=add({ago:26*H, by:"姚東妍", cat:"廣告行銷", unit:"五店分攤", payee:"立揚印刷", amount:8600, method:"現金", purpose:"iPhone 18 開賣 DM 5,000 份、門市立牌 5 座"},
+    demoReceipt("立揚印刷 估價單",[["DM 5,000 份","5,600"],["立牌 5 座","3,000"]],"8,600"));
+  r3.status="rejected"; r3.rejectedAt=r3.at+6*H; r3.rejectReason="立牌上個月才做過，先只印 DM 再送一次"; r3.ver=2; r3.log.push({t:r3.rejectedAt, who:"老闆", what:"退回"});
+  add({ago:4*H, by:"廖宛如", cat:"設備採購", unit:"凱旋", payee:"順發電腦", amount:23900, method:"匯款", bank:"國泰世華 高雄分行", acct:"0110-3-555888", holder:"順發電腦股份有限公司", purpose:"凱旋店結帳電腦主機故障，更換主機一台（含 Windows 授權）", due:shift(2), urgent:true},
+    demoReceipt("順發電腦 報價單",[["商用主機 i5","19,900"],["Windows 11 Pro","4,000"]],"23,900"));
+  add({ago:40*60e3, by:"曾芳新", cat:"員工代墊", unit:"陽明", payee:"劉芳廷", amount:1260, method:"現金", purpose:"陽明店代墊：清潔用品、門市垃圾袋、影印紙"},
+    demoReceipt("全聯 電子發票",[["清潔劑 x3","447"],["垃圾袋 x4","316"],["影印紙 A4","497"]],"1,260"));
+  return db;
+  function shift(n){ var d=new Date(now+n*D); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+}
+var DB=null;
+function ldb(){ if(DB) return DB; try{ var t=localStorage.getItem(LKEY); if(t){ DB=JSON.parse(t); } }catch(e){} if(!DB||!DB.reqs){ DB=seedDB(); lsave(); } return DB; }
+function lsave(){ try{ localStorage.setItem(LKEY, JSON.stringify(DB)); }catch(e){} }
+function lerr(code){ var e=new Error(code); e.code=code; throw e; }
+function rocKey(t){ var d=new Date(t); return (d.getFullYear()-1911)+pad(d.getMonth()+1)+pad(d.getDate()); }
+function strip(r){ var o={},k; for(k in r) o[k]=r[k]; return o; }
+var Local={
+  init:function(d){ var db=ldb(); return {names:db.names, hasSig:!!db.sigVer}; },
+  list:function(d){ var db=ldb(); if(d.pin!=null && d.pin!==db.pin) lerr("pin"); return {reqs:db.reqs.map(strip), sigs:db.sigs}; },
+  submit:function(d){ var db=ldb(); var f=d.req, at=Date.now(), key=rocKey(at); db.seq[key]=(db.seq[key]||0)+1;
+    var ph=(d.photos||[]).map(function(u,i){ var pid="p"+at+"_"+i; db.photos[pid]=u; return pid; });
+    var r={id:"r"+at, no:key+"-"+pad(db.seq[key]), status:"pending", at:at, by:d.me, photos:ph, approvedAt:0, approveNote:"", sigVer:0, rejectReason:"", rejectedAt:0, paidAt:"", paidNote:"", paidBy:"", ver:1, log:[{t:at, who:d.me, what:"送出請款"}]};
+    fill(r,f); db.reqs.unshift(r); lsave(); return {req:strip(r)}; },
+  resubmit:function(d){ var db=ldb(), r=find(db,d.id); if(r.status!=="rejected") lerr("state"); if(r.ver!==d.ver) lerr("ver");
+    var keep=(d.keep||[]).filter(function(p){ return r.photos.indexOf(p)>=0; }), at=Date.now();
+    var add=(d.photos||[]).map(function(u,i){ var pid="p"+at+"_"+i; db.photos[pid]=u; return pid; });
+    fill(r,d.req); r.photos=keep.concat(add); r.status="pending"; r.rejectReason=""; r.rejectedAt=0; r.ver++; r.log.push({t:at, who:d.me, what:"修改後重新送出"}); lsave(); return {req:strip(r)}; },
+  withdraw:function(d){ var db=ldb(), r=find(db,d.id); if(r.status!=="pending") lerr("state"); r.status="withdrawn"; r.ver++; r.log.push({t:Date.now(), who:d.me, what:"撤回"}); lsave(); return {req:strip(r)}; },
+  pay:function(d){ var db=ldb(), r=find(db,d.id); if(r.status!=="approved") lerr("state"); r.status="paid"; r.paidAt=d.date||today(); r.paidNote=d.note||""; r.paidBy=d.me; r.paidSig=String(d.sig||""); r.ver++; r.log.push({t:Date.now(), who:d.me, what:"登記已付款"}); lsave(); return {req:strip(r)}; },
+  photo:function(d){ var db=ldb(); if(!db.photos[d.id]) lerr("photo"); return {data:db.photos[d.id]}; },
+  gmCheck:function(d){ var db=ldb(); if(d.pin!==db.pin) lerr("pin"); return {hasSig:!!db.sigVer}; },
+  gmSig:function(d){ var db=ldb(); if(d.pin!==db.pin) lerr("pin"); db.sigVer++; db.sigs[db.sigVer]=d.sig; lsave(); return {sigVer:db.sigVer}; },
+  gmApprove:function(d){ var db=ldb(); if(d.pin!==db.pin) lerr("pin"); if(!db.sigVer) lerr("nosig"); var r=find(db,d.id); if(r.status!=="pending") lerr("state"); if(r.ver!==d.ver) lerr("ver");
+    r.status="approved"; r.approvedAt=Date.now(); r.approveNote=d.note||""; r.sigVer=db.sigVer; r.ver++; r.log.push({t:r.approvedAt, who:"老闆", what:"核准"}); lsave(); return {req:strip(r)}; },
+  gmReject:function(d){ var db=ldb(); if(d.pin!==db.pin) lerr("pin"); var r=find(db,d.id); if(r.status!=="pending") lerr("state"); if(r.ver!==d.ver) lerr("ver"); if(!d.reason) lerr("reason");
+    r.status="rejected"; r.rejectedAt=Date.now(); r.rejectReason=d.reason; r.ver++; r.log.push({t:r.rejectedAt, who:"老闆", what:"退回"}); lsave(); return {req:strip(r)}; },
+  gmPin:function(d){ var db=ldb(); if(d.pin!==db.pin) lerr("pin"); if(!/^\d{4,8}$/.test(d.newPin||"")) lerr("pinfmt"); db.pin=d.newPin; lsave(); return {}; }
+};
+function find(db,id){ for(var i=0;i<db.reqs.length;i++) if(db.reqs[i].id===id) return db.reqs[i]; lerr("gone"); }
+function fill(r,f){ r.bySig=String(f.bySig||""); ["cat","unit","payee","method","bank","acct","holder","purpose","due"].forEach(function(k){ r[k]=String(f[k]||""); }); r.amount=Math.round(Number(f.amount)||0); r.urgent=!!f.urgent; if(r.method!=="匯款"){ r.bank=""; r.acct=""; r.holder=""; } }
+
+/* ===== 連線 ===== */
+var ERR={code:"通行碼不正確，請再輸入一次。", sig:"簽名沒有讀到，請清除後重簽。", pin:"審核密碼不正確。", pinfmt:"密碼請輸入 4 到 8 位數字。", locked:"密碼錯太多次，請 10 分鐘後再試。",
+  nosig:"還沒有留存老闆簽名。", ver:"這張請款單剛剛有人更動過，已重新整理，請再確認一次。", state:"這張請款單的狀態已經變了，已重新整理。",
+  gone:"找不到這張請款單，請重新整理。", who:"名單裡找不到你的名字，請通知管理部。", reason:"退回要寫原因，申請人才知道怎麼改。",
+  photo:"單據照片讀不到，請重新整理再試。", fields:"有必填欄位沒填。", setup:"試算表還沒設定完成，請通知管理部。", big:"照片太大，請少放幾張或重拍。"};
+function errText(e){ var c=e&&e.code; if(c&&ERR[c]) return ERR[c]; if(c==="server") return "系統忙碌中，請再試一次。"+(e.msg?"（"+e.msg+"）":""); return "連不上系統，請檢查網路後再試一次。"; }
+function api(action, data){
+  var d={},k; for(k in (data||{})) d[k]=data[k];
+  d.action=action;
+  if(!LIVE){ return new Promise(function(res,rej){ setTimeout(function(){ try{ res(Local[action](d)); }catch(e){ rej(e); } }, 160); }); }
+  return fetch(API,{method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(d)})
+    .then(function(r){ return r.json(); })
+    .then(function(j){ if(!j||!j.ok){ var e=new Error((j&&j.code)||"server"); e.code=(j&&j.code)||"server"; e.msg=j&&j.msg; throw e; } return j; });
+}
+
+/* ===== 狀態 ===== */
+var S={view:"apply", tab:"list", me:"", code:"", names:[], pin:"", hasSig:false, reqs:[], sigs:{}, loaded:false, loading:false,
+  detail:null, filter:"all", q:"", form:null, msg:"", busy:false, photoCache:{}, boss:{tab:"todo"}, act:null};
+(function(){ try{ var t=sessionStorage.getItem(SKEY)||localStorage.getItem(SKEY); if(t){ var x=JSON.parse(t); S.lastBy=x.lastBy||""; S.code=x.code||""; S.view=x.view||"apply"; } }catch(e){} })();
+function keep(){ try{ localStorage.setItem(SKEY, JSON.stringify({lastBy:S.lastBy, code:S.code, view:S.view})); }catch(e){} }
+function blankForm(){ return {editId:null, ver:0, by:S.lastBy||"", cat:"", unit:"", payee:"", amount:"", method:"匯款", bank:"", acct:"", holder:"", purpose:"", due:"", urgent:false, photos:[]}; }
+
+function load(){
+  S.loading=true; render();
+  var p = S.view==="boss" ? {pin:S.pin} : {code:S.code};
+  return api("list", p).then(function(j){ S.reqs=j.reqs||[]; S.sigs=j.sigs||{}; S.loaded=true; S.loading=false; render(); },
+    function(e){ S.loading=false; if(e.code==="pin"){ S.pin=""; } if(e.code==="code"){ S.code=""; S.names=[]; keep(); } S.msg=errText(e); render(); });
+}
+function reqById(id){ for(var i=0;i<S.reqs.length;i++) if(S.reqs[i].id===id) return S.reqs[i]; return null; }
+function upsert(r){ for(var i=0;i<S.reqs.length;i++) if(S.reqs[i].id===r.id){ S.reqs[i]=r; return; } S.reqs.unshift(r); }
+
+/* ===== 畫面 ===== */
+function render(){
+  var h='<header class="top"><div class="brand"><b>倚盟請款簽核</b><span>重要請款・老闆線上核准</span></div>'+
+    '<div class="switch" role="group" aria-label="切換身分"><button type="button" id="sw-apply" data-act="view" data-v="apply" aria-pressed="'+(S.view==="apply")+'">申請人</button><button type="button" id="sw-boss" data-act="view" data-v="boss" aria-pressed="'+(S.view==="boss")+'">老闆審核</button></div></header>';
+  if(!LIVE) h+='<div class="note">樣板模式：資料只存在這台裝置，列表裡標「範例」的是示範資料。老闆審核密碼是 1234。正式上線後會改連公司的試算表。</div>';
+  h+= S.view==="boss" ? bossView() : applyView();
+  $("app").innerHTML=h;
+  after();
+}
+function applyView(){
+  if(LIVE && (!S.code || !S.names.length)) return loginView();
+  var pend=S.reqs.filter(function(r){return r.status==="pending";}).length, rej=S.reqs.filter(function(r){return r.status==="rejected";}).length;
+  var h='<nav class="tabs"><button type="button" id="tab-list" data-act="tab" data-v="list" aria-pressed="'+(S.tab==="list"&&!S.detail)+'">請款單</button>'+
+    '<button type="button" id="tab-new" data-act="tab" data-v="new" aria-pressed="'+(S.tab==="new"&&!S.detail)+'">'+(S.form&&S.form.editId?"修改請款單":"新增請款")+'</button>'+
+    (LIVE?'<span class="who"><button type="button" class="link small" data-act="logout">登出</button></span>':'')+'</nav>';
+  if(S.msg) h+='<div class="err">'+esc(S.msg)+'</div>';
+  if(S.detail) return h+detailView(reqById(S.detail), false);
+  if(S.tab==="new") return h+formView();
+  if(rej) h+='<div class="reject">有 '+rej+' 張請款單被老闆退回，點開看原因，修改後可以重新送出。</div>';
+  return h+listView(pend);
+}
+function loginView(){
+  var h='<div class="narrow"><section class="panel"><div class="eyebrow">總部請款</div><h1>輸入通行碼</h1>'+
+    '<p class="muted small" style="margin:0">請款單有廠商帳號，所以要先輸入總部的通行碼，外人看不到。同一支手機輸入一次就會記住。</p>'+
+    '<label class="f" for="lg-code">通行碼<input type="password" id="lg-code" autocomplete="off"></label>'+
+    '<button type="button" class="btn" id="btn-code" data-act="code">進入</button>';
+  if(S.msg) h+='<div class="err">'+esc(S.msg)+'</div>';
+  return h+'</section></div>';
+}
+function matches(r){
+  if(S.filter==="pending" && r.status!=="pending") return false;
+  if(S.filter==="approved" && r.status!=="approved") return false;
+  if(S.filter==="paid" && r.status!=="paid") return false;
+  if(S.filter==="rejected" && r.status!=="rejected" && r.status!=="withdrawn") return false;
+    if(S.q){ var s=(r.no+" "+r.payee+" "+r.purpose+" "+r.by+" "+r.unit+" "+r.cat).toLowerCase(); if(s.indexOf(S.q.toLowerCase())<0) return false; }
+  return true;
+}
+function listView(){
+  if(S.loading && !S.loaded) return '<div class="empty"><span class="spin"></span> 讀取中…</div>';
+  var counts={pending:0, approved:0}, toPay=0;
+  S.reqs.forEach(function(r){ if(counts[r.status]!=null) counts[r.status]++; if(r.status==="approved") toPay+=r.amount; });
+  var h='<div class="sum"><div><b>'+counts.pending+' 張</b><span>等老闆核准</span></div><div><b>'+counts.approved+' 張</b><span>已核准、還沒付款</span></div><div><b class="num">'+money(toPay)+'</b><span>待付款合計</span></div></div>';
+  var F=[["all","全部"],["pending","等核准"],["approved","待付款"],["paid","已付款"],["rejected","退回／撤回"]];
+  h+='<div class="row"><div class="seg grow" role="group" aria-label="篩選">'+F.map(function(f){ return '<button type="button" id="ft-'+f[0]+'" data-act="filter" data-v="'+f[0]+'" aria-pressed="'+(S.filter===f[0])+'">'+f[1]+'</button>'; }).join("")+'</div>'+
+    '<button type="button" class="btn quiet sm" id="btn-reload" data-act="reload">'+(S.loading?'<span class="spin"></span>':'重新整理')+'</button></div>';
+  h+='<input type="search" id="q" placeholder="搜尋單號、廠商、用途、門市" value="'+esc(S.q)+'" aria-label="搜尋">';
+  var rows=S.reqs.filter(matches);
+  if(!rows.length) return h+'<div class="empty">'+(S.reqs.length?'沒有符合的請款單。':'還沒有請款單。按上面「新增請款」送出第一張。')+'</div>';
+  return h+'<div class="list">'+rows.map(card).join("")+'</div>';
+}
+function card(r){
+  var st=ST[r.status]||["",""];
+  return '<button type="button" class="card" data-act="open" data-id="'+esc(r.id)+'">'+
+    '<span class="t">'+(r.urgent&&(r.status==="pending"||r.status==="approved")?'<span class="urgent">急</span>':'')+esc(r.payee)+(r.demo?' <span class="demo">範例</span>':'')+'</span>'+
+    '<span class="a">'+money(r.amount)+'</span>'+
+    '<span class="m">'+esc(r.no)+'・'+esc(r.cat)+'・'+esc(r.unit)+'・'+esc(r.by)+' 送出 '+fmt(r.at)+'<br>'+esc(r.purpose)+'</span>'+
+    '<span class="s"><span class="pill '+st[1]+'">'+st[0]+'</span></span></button>';
+}
+function formView(){
+  var f=S.form||(S.form=blankForm());
+  var payees={}; S.reqs.forEach(function(r){ if(r.payee) payees[r.payee]=1; });
+  var h='<section class="panel"><div class="eyebrow">'+(f.editId?"修改後重新送出":"新增請款")+'</div><h1>'+(f.editId?"修改請款單":"填寫請款單")+'</h1>';
+  h+='<label class="f" for="f-by">申請人<select id="f-by"><option value="">請選擇</option>'+S.names.map(function(n){ return '<option'+(f.by===n?' selected':'')+'>'+esc(n)+'</option>'; }).join("")+'</select></label>';
+  h+='<div class="grid2"><label class="f" for="f-cat">請款類別<select id="f-cat"><option value="">請選擇</option>'+CATS.map(function(c){ return '<option'+(f.cat===c?' selected':'')+'>'+c+'</option>'; }).join("")+'</select></label>'+
+    '<label class="f" for="f-unit">這筆錢算哪一店的<span class="hint">總部自己用的選總部；五家店一起用的選五店分攤</span><select id="f-unit"><option value="">請選擇</option>'+UNITS.map(function(c){ return '<option'+(f.unit===c?' selected':'')+'>'+c+'</option>'; }).join("")+'</select></label></div>';
+  h+='<div class="grid2"><label class="f" for="f-payee">受款對象<span class="hint">廠商名稱或個人姓名，打過的會自動帶出</span><input type="text" id="f-payee" list="payees" value="'+esc(f.payee)+'" autocomplete="off"></label>'+
+    '<datalist id="payees">'+Object.keys(payees).map(function(p){ return '<option value="'+esc(p)+'">'; }).join("")+'</datalist>'+
+    '<label class="f" for="f-amount">金額（新台幣，含稅）<span class="hint">只填數字</span><input type="text" inputmode="numeric" id="f-amount" value="'+esc(f.amount)+'" autocomplete="off"></label></div>';
+  h+='<label class="f" for="f-purpose">用途說明<span class="hint">寫清楚買什麼、為什麼，老闆一看就懂</span><textarea id="f-purpose">'+esc(f.purpose)+'</textarea></label>';
+  h+='<div class="f" style="display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:700">付款方式<div class="seg" role="group" aria-label="付款方式">'+METHODS.map(function(m,i){ return '<button type="button" id="f-m'+i+'" data-act="method" data-v="'+m+'" aria-pressed="'+(f.method===m)+'">'+m+'</button>'; }).join("")+'</div></div>';
+  if(f.method==="匯款") h+='<div class="grid2"><label class="f" for="f-bank">銀行與分行<input type="text" id="f-bank" value="'+esc(f.bank)+'"></label><label class="f" for="f-acct">帳號<input type="text" inputmode="numeric" id="f-acct" value="'+esc(f.acct)+'" autocomplete="off"></label></div>'+
+    '<label class="f" for="f-holder">戶名<input type="text" id="f-holder" value="'+esc(f.holder)+'"></label>';
+  h+='<div class="grid2"><label class="f" for="f-due">希望付款日<span class="hint">沒有特別期限可以不填</span><input type="date" id="f-due" value="'+esc(f.due)+'"></label>'+
+    '<label class="check" for="f-urgent" style="align-self:end;min-height:46px"><input type="checkbox" id="f-urgent"'+(f.urgent?' checked':'')+'>急件（老闆那邊會排在最前面）</label></div>';
+  h+='<div class="f" style="display:flex;flex-direction:column;gap:8px;font-size:14px;font-weight:700">單據照片<span class="hint" style="font-weight:400;color:var(--muted);font-size:12px">發票、收據、報價單都可以，用手機直接拍，最多 '+MAX_PHOTOS+' 張</span><div class="thumbs">'+
+    f.photos.map(function(p,i){ var src=p.data||S.photoCache[p.id]||""; return '<div class="thumb">'+(src?'<img alt="單據 '+(i+1)+'" src="'+src+'">':'<span class="ld">讀取中</span>')+'<button type="button" class="x" data-act="rmPhoto" data-i="'+i+'" aria-label="移除第 '+(i+1)+' 張">✕</button></div>'; }).join("")+
+    (f.photos.length<MAX_PHOTOS?'<label class="thumb add" for="f-file"><b>＋</b>加照片<input type="file" id="f-file" accept="image/*" multiple hidden></label>':'')+'</div></div>';
+  h+=padHtml("f-sig","申請人簽名","點框框會打開全螢幕簽名，簽好按完成","點這裡簽名");
+  h+='<div id="f-msg" class="err" hidden></div>';
+  h+='<div class="row"><button type="button" class="btn grow" id="btn-submit" data-act="submit">'+(S.busy?'<span class="spin"></span> 送出中…':(f.editId?'重新送出給老闆':'送出給老闆核准'))+'</button>'+
+    (f.editId?'<button type="button" class="btn quiet" id="btn-cancel-edit" data-act="cancelEdit">取消修改</button>':'')+'</div>';
+  return h+'</section>';
+}
+function sigOf(r){ return r.sigVer && S.sigs[r.sigVer] ? S.sigs[r.sigVer] : ""; }
+function slip(r){
+  var st=ST[r.status]||["",""];
+  var h='<article class="slip"><div class="head"><b>請款單</b><span>單號 '+esc(r.no)+'<br>'+fmt(r.at)+'</span></div>';
+  h+='<div class="row"><span class="pill '+st[1]+'">'+st[0]+'</span>'+(r.urgent?'<span class="urgent">急件</span>':'')+(r.demo?'<span class="demo">範例</span>':'')+'</div>';
+  h+='<table><tr><th>受款對象</th><td><b>'+esc(r.payee)+'</b></td></tr><tr><th>金額</th><td class="big">'+money(r.amount)+'</td></tr>'+
+    '<tr><th>請款類別</th><td>'+esc(r.cat)+'</td></tr><tr><th>費用算在</th><td>'+esc(r.unit)+'</td></tr><tr><th>用途說明</th><td>'+esc(r.purpose)+'</td></tr>'+
+    '<tr><th>付款方式</th><td>'+esc(r.method)+(r.method==="匯款"?'<div class="cap">'+esc(r.bank)+'<br>帳號 <span class="num">'+esc(r.acct)+'</span>　戶名 '+esc(r.holder)+'</div>':'')+'</td></tr>'+
+    '<tr><th>希望付款日</th><td>'+(r.due?fmtD(r.due):'<span class="cap">沒有指定</span>')+'</td></tr>';
+  if(r.approveNote) h+='<tr><th>老闆備註</th><td>'+esc(r.approveNote)+'</td></tr>';
+  if(r.status==="paid") h+='<tr><th>付款紀錄</th><td>'+fmtD(r.paidAt)+' 由 '+esc(r.paidBy)+' 登記'+(r.paidNote?'<div class="cap">'+esc(r.paidNote)+'</div>':'')+'</td></tr>';
+  h+='</table>';
+  var sig=sigOf(r), approvedLike=(r.status==="approved"||r.status==="paid");
+  h+='<div class="boxes"><div><h3>申請人</h3><div class="in">'+(r.bySig?'<img alt="'+esc(r.by)+'簽名" src="'+r.bySig+'"><span class="dt">'+esc(r.by)+'</span>':'<span class="nm">'+esc(r.by)+'</span>')+'<span class="dt">'+fmt(r.at)+'</span></div></div>'+
+    '<div><h3>核准</h3><div class="in">'+(approvedLike?(sig?'<img alt="老闆簽名" src="'+sig+'">':'<span class="stamp">核准</span>')+'<span class="dt">'+fmt(r.approvedAt)+'</span>':(r.status==="rejected"?'<span class="stamp">退回</span><span class="dt">'+fmt(r.rejectedAt)+'</span>':'<span class="wait">'+(r.status==="withdrawn"?'已撤回':'等待核准')+'</span>'))+'</div></div>'+
+    '<div><h3>付款</h3><div class="in">'+(r.status==="paid"?(r.paidSig?'<img alt="'+esc(r.paidBy)+'簽名" src="'+r.paidSig+'"><span class="dt">'+esc(r.paidBy)+'</span>':'<span class="nm">'+esc(r.paidBy)+'</span>')+'<span class="dt">'+fmtD(r.paidAt)+' 付款</span>':'<span class="wait">'+(r.status==="approved"?'待付款':'—')+'</span>')+'</div></div></div>';
+  return h+'</article>';
+}
+function photosBlock(r){
+  if(!r.photos||!r.photos.length) return '<div class="small muted">沒有附單據照片。</div>';
+  return '<div class="thumbs">'+r.photos.map(function(id,i){ var src=S.photoCache[id]; return '<button type="button" class="thumb" data-act="viewPhoto" data-id="'+esc(id)+'" aria-label="放大第 '+(i+1)+' 張單據">'+(src?'<img alt="" src="'+src+'">':'<span class="ld"><span class="spin"></span></span>')+'</button>'; }).join("")+'</div>';
+}
+function detailView(r, boss){
+  if(!r) return '<div class="empty">找不到這張請款單。<button type="button" class="link" data-act="back">回列表</button></div>';
+  var h='<div class="row"><button type="button" class="btn quiet sm" id="btn-back" data-act="back">← 回列表</button></div>';
+  if(r.status==="rejected") h+='<div class="reject"><b>老闆退回原因：</b>'+esc(r.rejectReason)+'</div>';
+  h+=slip(r);
+  h+='<section class="panel"><h2>單據照片</h2>'+photosBlock(r)+'</section>';
+  h+= boss ? bossActions(r) : applyActions(r);
+  h+='<section class="panel"><h2>處理紀錄</h2><ul class="timeline">'+(r.log||[]).map(function(l){ return '<li><span>'+fmt(l.t)+'</span><b style="font-weight:500">'+esc(l.who)+'　'+esc(l.what)+'</b></li>'; }).join("")+'</ul></section>';
+  return h;
+}
+function applyActions(r){
+  var h='';
+  if(r.status==="pending"){
+    h+='<section class="panel"><h2>等老闆核准中</h2><div class="small muted">送錯了可以先撤回，撤回後老闆那邊就看不到。</div>';
+    if(S.act==="withdraw") h+='<div class="row"><span class="grow small">確定撤回這張請款單？</span><button type="button" class="btn danger sm" id="btn-wd-yes" data-act="withdrawYes">確定撤回</button><button type="button" class="btn quiet sm" data-act="actNone">不要</button></div>';
+    else h+='<div class="row"><button type="button" class="btn dangerq sm" id="btn-wd" data-act="withdraw">撤回請款單</button></div>';
+    h+='</section>';
+  } else if(r.status==="rejected"){
+    h+='<section class="panel"><h2>修改後重新送出</h2><div class="small muted">照老闆的意見改好，會用同一個單號重新送給老闆。</div><div class="row"><button type="button" class="btn" id="btn-edit" data-act="edit">修改這張請款單</button></div></section>';
+  } else if(r.status==="approved"){
+    h+='<section class="panel"><h2>登記付款</h2><div class="small muted">錢付出去之後在這裡登記，列表就會變成「已付款」。</div>'+
+      '<label class="f" for="pay-by">付款登記人<select id="pay-by"><option value="">請選擇</option>'+S.names.map(function(n){ return '<option'+(S.lastBy===n?' selected':'')+'>'+esc(n)+'</option>'; }).join("")+'</select></label>'+
+      padHtml("pay-sig","付款人簽名","點框框會打開全螢幕簽名，簽好按完成","點這裡簽名")+
+      '<div id="pay-msg" class="err" hidden></div>'+
+      '<div class="grid2"><label class="f" for="pay-date">付款日期<input type="date" id="pay-date" value="'+today()+'"></label><label class="f" for="pay-note">備註<span class="hint">例如：網銀轉帳完成、現金已交廠商</span><input type="text" id="pay-note"></label></div>'+
+      '<div class="row"><button type="button" class="btn" id="btn-pay" data-act="pay">'+(S.busy?'<span class="spin"></span> 儲存中…':'登記已付款')+'</button></div></section>';
+  }
+  return h;
+}
+
+/* ----- 老闆 ----- */
+function bossView(){
+  if(!S.pin) return bossLogin();
+  if(!S.hasSig || S.boss.sigMode) return sigSetup();
+  var h='';
+  if(S.msg) h+='<div class="err">'+esc(S.msg)+'</div>';
+  if(S.detail) return h+detailView(reqById(S.detail), true);
+  var todo=S.reqs.filter(function(r){return r.status==="pending";}).sort(function(a,b){ return (b.urgent-a.urgent)||(a.at-b.at); });
+  var done=S.reqs.filter(function(r){return r.status!=="pending" && r.status!=="withdrawn";}).sort(function(a,b){ return (Math.max(b.approvedAt||0,b.rejectedAt||0))-(Math.max(a.approvedAt||0,a.rejectedAt||0)); });
+  var tot=todo.reduce(function(s,r){return s+r.amount;},0), urg=todo.filter(function(r){return r.urgent;}).length;
+  h+='<div class="sum"><div><b>'+todo.length+' 張</b><span>等你核准'+(urg?'，其中 '+urg+' 張急件':'')+'</span></div><div><b class="num">'+money(tot)+'</b><span>待核准合計</span></div></div>';
+  h+='<nav class="tabs"><button type="button" id="bt-todo" data-act="btab" data-v="todo" aria-pressed="'+(S.boss.tab==="todo")+'">等你核准（'+todo.length+'）</button><button type="button" id="bt-done" data-act="btab" data-v="done" aria-pressed="'+(S.boss.tab==="done")+'">已處理</button>'+
+    '<span class="who"><button type="button" class="link small" data-act="reload">'+(S.loading?'<span class="spin"></span>':'重新整理')+'</button><button type="button" class="link small" data-act="bossMenu">設定</button><button type="button" class="link small" data-act="bossOut">登出</button></span></nav>';
+  if(S.boss.menu) h+=bossMenu();
+  var rows=S.boss.tab==="todo"?todo:done.slice(0,60);
+  if(S.loading && !S.loaded) return h+'<div class="empty"><span class="spin"></span> 讀取中…</div>';
+  if(!rows.length) return h+'<div class="empty">'+(S.boss.tab==="todo"?'目前沒有要核准的請款單。':'還沒有處理過的請款單。')+'</div>';
+  return h+'<div class="list">'+rows.map(card).join("")+'</div>';
+}
+function bossLogin(){
+  return '<div class="narrow"><section class="panel"><div class="eyebrow">老闆審核</div><h1>輸入審核密碼</h1><p class="muted small" style="margin:0">密碼只有老闆知道。輸入後可以看到所有等核准的請款單。</p>'+
+    '<label class="f" for="gm-pin">審核密碼<input type="password" inputmode="numeric" autocomplete="off" id="gm-pin"></label>'+
+    (S.msg?'<div class="err">'+esc(S.msg)+'</div>':'')+
+    '<button type="button" class="btn" id="btn-gm" data-act="gmLogin">'+(S.busy?'<span class="spin"></span> 核對中…':'進入審核')+'</button></section></div>';
+}
+function sigSetup(){
+  var first=!S.hasSig;
+  return '<div class="narrow"><section class="panel"><div class="eyebrow">'+(first?'第一次使用':'更換簽名')+'</div><h1>'+(first?'先留存你的簽名':'簽下新的簽名')+'</h1>'+
+    '<p class="muted small" style="margin:0">'+(first?'簽一次就好。之後每張請款單按「核准」，這個簽名就會蓋在請款單的核准欄。':'之後核准的請款單會用新簽名，已經核准的維持原本的簽名。')+'</p>'+
+    padHtml("sigpad","老闆簽名","","點這裡簽名")+
+    (S.msg?'<div class="err">'+esc(S.msg)+'</div>':'')+
+    '<div class="row"><button type="button" class="btn grow" id="btn-sigsave" data-act="sigSave"'+(padInked("sigpad")?'':' disabled')+'>留存簽名</button>'+(first?'':'<button type="button" class="btn quiet sm" data-act="sigCancel">取消</button>')+'</div></section></div>';
+}
+function bossMenu(){
+  var cur=S.sigs[Object.keys(S.sigs).map(Number).sort(function(a,b){return b-a;})[0]]||"";
+  return '<section class="panel"><h2>設定</h2>'+(cur?'<div class="small muted">目前留存的簽名</div><div class="sigprev"><img alt="目前簽名" src="'+cur+'"></div>':'')+
+    '<div class="row"><button type="button" class="btn quiet sm" data-act="sigChange">更換簽名</button></div>'+
+    '<div class="grid2"><label class="f" for="pin-new">新審核密碼<span class="hint">4 到 8 位數字</span><input type="password" inputmode="numeric" id="pin-new" autocomplete="off"></label><label class="f" for="pin-new2">再輸入一次<input type="password" inputmode="numeric" id="pin-new2" autocomplete="off"></label></div>'+
+    '<div id="pin-msg" class="small" hidden></div><div class="row"><button type="button" class="btn sm" data-act="pinChange">更換密碼</button><button type="button" class="btn quiet sm" data-act="bossMenu">關閉</button></div></section>';
+}
+function bossActions(r){
+  if(r.status!=="pending"){
+    return '<section class="panel"><div class="small muted">這張已經'+(ST[r.status]||[""])[0]+'。</div></section>';
+  }
+  var sig=S.sigs[Object.keys(S.sigs).map(Number).sort(function(a,b){return b-a;})[0]]||"";
+  var h='<section class="panel"><h2>核准</h2><div class="small muted">按下核准，下面這個簽名會蓋在請款單的核准欄，總部就可以付款。</div>'+
+    (sig?'<div class="sigprev"><img alt="你的簽名" src="'+sig+'"></div>':'')+
+    '<label class="f" for="ap-note">給總部的備註<span class="hint">可以不填</span><input type="text" id="ap-note"></label>'+
+    '<button type="button" class="btn" id="btn-approve" data-act="approve">'+(S.busy==="approve"?'<span class="spin"></span> 核准中…':'核准這筆 '+money(r.amount))+'</button></section>';
+  h+='<section class="panel"><h2>退回</h2><div class="small muted">寫下原因，申請人改好可以重新送。</div>'+
+    '<label class="f" for="rj-reason">退回原因<textarea id="rj-reason" placeholder="例如：先比兩家價格再送"></textarea></label>'+
+    '<div id="rj-msg" class="err" hidden></div><div class="row"><button type="button" class="btn dangerq" id="btn-reject" data-act="reject">'+(S.busy==="reject"?'<span class="spin"></span> 退回中…':'退回這張請款單')+'</button></div></section>';
+  return h;
+}
+
+/* ===== 畫完之後：載入照片、簽名板 ===== */
+function after(){
+  var r=S.detail?reqById(S.detail):null;
+  if(r && r.photos) r.photos.forEach(fetchPhoto);
+  if(S.form && S.tab==="new" && !S.detail) S.form.photos.forEach(function(p){ if(p.id) fetchPhoto(p.id); });
+  var q=$("q"); if(q){ q.oninput=function(){ var pos=q.selectionStart; S.q=q.value; var l=document.querySelector(".list"), rows=S.reqs.filter(matches);
+    var target=l||q.nextElementSibling; var html=rows.length?'<div class="list">'+rows.map(card).join("")+'</div>':'<div class="empty">沒有符合的請款單。</div>';
+    if(target){ var t=document.createElement("div"); t.innerHTML=html; target.replaceWith(t.firstChild); } }; }
+  var ff=$("f-file"); if(ff) ff.onchange=function(){ addPhotos(ff.files); };
+  var py=$("f-payee"); if(py) py.onchange=function(){ autofill(py.value); };
+}
+var pending={};
+function fetchPhoto(id){
+  if(S.photoCache[id]||pending[id]) return; pending[id]=1;
+  var p=S.view==="boss"?{pin:S.pin, id:id}:{code:S.code, id:id};
+  api("photo",p).then(function(j){ S.photoCache[id]=j.data; delete pending[id]; render(); }, function(){ delete pending[id]; });
+}
+function autofill(name){
+  var f=S.form; if(!f||!name) return; saveForm();
+  for(var i=0;i<S.reqs.length;i++){ var r=S.reqs[i]; if(r.payee===name){
+    if(!f.cat) f.cat=r.cat; if(r.method==="匯款" && !f.acct){ f.method="匯款"; f.bank=r.bank; f.acct=r.acct; f.holder=r.holder; } render(); return; } }
+}
+function saveForm(){
+  var f=S.form; if(!f || !$("f-cat")) return;
+  f.by=val("f-by"); f.cat=val("f-cat"); f.unit=val("f-unit"); f.payee=val("f-payee"); f.amount=val("f-amount"); f.purpose=val("f-purpose"); f.due=val("f-due");
+  f.urgent=!!($("f-urgent")&&$("f-urgent").checked);
+  if($("f-bank")){ f.bank=val("f-bank"); f.acct=val("f-acct"); f.holder=val("f-holder"); }
+}
+function addPhotos(files){
+  saveForm(); var f=S.form, list=[].slice.call(files||[]).slice(0, MAX_PHOTOS-f.photos.length);
+  Promise.all(list.map(compress)).then(function(urls){ urls.forEach(function(u){ if(u) f.photos.push({data:u}); }); render(); });
+}
+function compress(file){
+  return new Promise(function(res){
+    var rd=new FileReader(); rd.onload=function(){ var im=new Image(); im.onload=function(){
+      var m=1400, w=im.width, h=im.height, k=Math.min(1, m/Math.max(w,h)); var c=document.createElement("canvas"); c.width=Math.round(w*k); c.height=Math.round(h*k);
+      var x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height); x.drawImage(im,0,0,c.width,c.height); res(c.toDataURL("image/jpeg",.72)); };
+      im.onerror=function(){ res(""); }; im.src=rd.result; }; rd.onerror=function(){ res(""); }; rd.readAsDataURL(file);
+  });
+}
+var PADS={};
+/* 頁面上只放一個「點這裡簽名」的框；點下去開全螢幕簽名板，按「完成」後把簽名縮圖放回框裡 */
+function padHtml(id,label,hint,place){
+  var img=PADS[id]&&PADS[id].img;
+  return '<div class="padlabel">'+label+(hint?'<span class="hint">'+hint+'</span>':'')+
+    '<button type="button" class="signbox sm tap'+(img?' done':'')+'" id="'+id+'" data-act="padOpen" data-v="'+id+'" data-t="'+esc(label)+'">'+
+    (img?'<img alt="'+esc(label)+'" src="'+img+'"><span class="redo">點一下重簽</span>':'<span class="hint">'+place+'</span>')+'</button></div>';
+}
+function padInked(id){ return !!(PADS[id]&&PADS[id].img); }
+function padImg(id){ return PADS[id]&&PADS[id].img||""; }
+var SG={id:"", ink:false, x:null};
+function padOpen(id,title){
+  saveForm(); SG.id=id; SG.ink=false;
+  $("signer-title").textContent=title||"簽名"; $("signer-done").disabled=true; $("signer-hint").hidden=false;
+  $("signer").hidden=false; document.documentElement.style.overflow="hidden";
+  requestAnimationFrame(function(){ sizePad(); });
+}
+function sizePad(){
+  var c=$("signer-pad"), b=c.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+  c.width=Math.round(b.width*dpr); c.height=Math.round(b.height*dpr);
+  var x=c.getContext("2d"); x.setTransform(dpr,0,0,dpr,0,0); x.lineWidth=Math.max(3, Math.min(b.width,b.height)/90); x.lineCap="round"; x.lineJoin="round"; x.strokeStyle="#14251F"; x.fillStyle="#14251F";
+  SG.x=x; SG.ink=false; $("signer-done").disabled=true; $("signer-hint").hidden=false;
+}
+function padClose(){ $("signer").hidden=true; document.documentElement.style.overflow=""; }
+(function(){
+  var c=$("signer-pad"), down=false, lx=0, ly=0;
+  function pt(e){ var r=c.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top]; }
+  function inked(){ if(!SG.ink){ SG.ink=true; $("signer-done").disabled=false; $("signer-hint").hidden=true; } }
+  c.addEventListener("pointerdown",function(e){ if(!SG.x) return; down=true; try{ c.setPointerCapture(e.pointerId); }catch(_){} var p=pt(e); lx=p[0]; ly=p[1]; SG.x.beginPath(); SG.x.arc(lx,ly,SG.x.lineWidth/2,0,7); SG.x.fill(); inked(); e.preventDefault(); });
+  c.addEventListener("pointermove",function(e){ if(!down) return; var p=pt(e); SG.x.beginPath(); SG.x.moveTo(lx,ly); SG.x.lineTo(p[0],p[1]); SG.x.stroke(); lx=p[0]; ly=p[1]; e.preventDefault(); });
+  ["pointerup","pointercancel","pointerleave"].forEach(function(n){ c.addEventListener(n,function(){ down=false; }); });
+  window.addEventListener("resize",function(){ if(!$("signer").hidden) sizePad(); });
+})();
+function sigImage(){
+  var c=$("signer-pad"), x=c.getContext("2d"), w=c.width, h=c.height, d=x.getImageData(0,0,w,h).data, x0=w, y0=h, x1=0, y1=0;
+  for(var y=0;y<h;y+=2) for(var i=0;i<w;i+=2){ if(d[(y*w+i)*4+3]>0){ if(i<x0)x0=i; if(i>x1)x1=i; if(y<y0)y0=y; if(y>y1)y1=y; } }
+  if(x1<=x0) return "";
+  var m=10; x0=Math.max(0,x0-m); y0=Math.max(0,y0-m); x1=Math.min(w,x1+m); y1=Math.min(h,y1+m);
+  var cw=x1-x0, ch=y1-y0, k=Math.min(1, 420/cw, 160/ch), o=document.createElement("canvas"); o.width=Math.max(1,Math.round(cw*k)); o.height=Math.max(1,Math.round(ch*k));
+  o.getContext("2d").drawImage(c,x0,y0,cw,ch,0,0,o.width,o.height); return o.toDataURL("image/png");
+}
+
+/* ===== 按鈕 ===== */
+document.addEventListener("click",function(ev){
+  var t=ev.target.closest("[data-act]"); if(!t) return;
+  var act=t.getAttribute("data-act"), v=t.getAttribute("data-v");
+  if(act==="view"){ if(S.view===v) return; saveForm(); S.view=v; S.detail=null; S.msg=""; S.act=null; S.loaded=false; S.reqs=[]; keep(); if(v==="apply") startApply(); else if(S.pin) load(); else render(); }
+  else if(act==="code"){ var c=val("lg-code"); if(!c) return; S.code=c; S.msg=""; api("init",{code:c}).then(function(j){ S.names=j.names||[]; keep(); load(); }, function(e){ S.msg=errText(e); render(); }); }
+    else if(act==="logout"){ S.code=""; S.names=[]; S.reqs=[]; S.loaded=false; S.detail=null; keep(); render(); }
+  else if(act==="tab"){ saveForm(); S.tab=v; S.detail=null; S.act=null; S.msg=""; if(v==="new"&&!S.form) S.form=blankForm(); render(); window.scrollTo(0,0); }
+  else if(act==="filter"){ S.filter=v; render(); }
+  else if(act==="reload"){ S.msg=""; load(); }
+  else if(act==="open"){ saveForm(); delete PADS["pay-sig"]; S.detail=t.getAttribute("data-id"); S.act=null; S.msg=""; render(); window.scrollTo(0,0); }
+  else if(act==="back"){ S.detail=null; S.act=null; S.msg=""; render(); }
+  else if(act==="method"){ saveForm(); S.form.method=v; render(); }
+  else if(act==="rmPhoto"){ ev.preventDefault(); saveForm(); S.form.photos.splice(Number(t.getAttribute("data-i")),1); render(); }
+  else if(act==="cancelEdit"){ S.form=blankForm(); delete PADS["f-sig"]; S.tab="list"; render(); }
+  else if(act==="submit") submitForm();
+  else if(act==="viewPhoto"){ var src=S.photoCache[t.getAttribute("data-id")]; if(src){ $("viewer-img").src=src; $("viewer").hidden=false; } }
+  else if(act==="closeViewer"){ $("viewer").hidden=true; }
+  else if(act==="withdraw"){ S.act="withdraw"; render(); }
+  else if(act==="actNone"){ S.act=null; render(); }
+  else if(act==="withdrawYes"){ var r0=reqById(S.detail); api("withdraw",{code:S.code, me:r0.by, id:r0.id}).then(function(j){ upsert(j.req); S.act=null; render(); }, failReload); }
+  else if(act==="edit"){ var r1=reqById(S.detail); S.form={editId:r1.id, ver:r1.ver, by:r1.by, cat:r1.cat, unit:r1.unit, payee:r1.payee, amount:String(r1.amount), method:r1.method, bank:r1.bank, acct:r1.acct, holder:r1.holder, purpose:r1.purpose, due:r1.due, urgent:r1.urgent, photos:r1.photos.map(function(id){return {id:id};})};
+    delete PADS["f-sig"]; S.detail=null; S.tab="new"; render(); window.scrollTo(0,0); }
+  else if(act==="pay"){ var r2=reqById(S.detail), pb=val("pay-by"), pd=val("pay-date")||today(), pn=val("pay-note"); var pm=$("pay-msg"); if(!pb){ pm.hidden=false; pm.textContent="請選付款登記人。"; return; } if(!padInked("pay-sig")){ pm.hidden=false; pm.textContent="請付款人簽名。"; return; } var ps=padImg("pay-sig"); if(S.busy) return; S.busy=true; S.lastBy=pb; keep(); render();
+    api("pay",{code:S.code, me:pb, id:r2.id, date:pd, note:pn, sig:ps}).then(function(j){ S.busy=false; delete PADS["pay-sig"]; upsert(j.req); render(); }, function(e){ S.busy=false; failReload(e); }); }
+  else if(act==="gmLogin"){ var p=val("gm-pin"); if(!p||S.busy) return; S.busy=true; S.msg=""; render();
+    api("gmCheck",{pin:p}).then(function(j){ S.busy=false; S.pin=p; S.hasSig=!!j.hasSig; render(); if(S.hasSig) load(); }, function(e){ S.busy=false; S.msg=errText(e); render(); }); }
+  else if(act==="bossOut"){ S.pin=""; S.detail=null; S.reqs=[]; S.loaded=false; S.boss={tab:"todo"}; render(); }
+  else if(act==="btab"){ S.boss.tab=v; render(); }
+  else if(act==="bossMenu"){ S.boss.menu=!S.boss.menu; render(); }
+  else if(act==="sigChange"){ S.boss.sigMode=true; S.boss.menu=false; render(); }
+  else if(act==="sigCancel"){ S.boss.sigMode=false; render(); }
+  else if(act==="sigClear"){ delete PADS["sigpad"]; render(); }
+  else if(act==="padOpen"){ padOpen(v, t.getAttribute("data-t")); }
+  else if(act==="padCancel"){ padClose(); }
+  else if(act==="padRedo"){ sizePad(); }
+  else if(act==="padDone"){ var im=sigImage(); if(!im) return; PADS[SG.id]={img:im}; padClose(); render(); var bx=$(SG.id); if(bx) bx.scrollIntoView({block:"center"}); }
+  else if(act==="sigSave"){ var img=padImg("sigpad"); if(!img) return; t.disabled=true; t.textContent="儲存中…";
+    api("gmSig",{pin:S.pin, sig:img}).then(function(j){ S.hasSig=true; S.boss.sigMode=false; S.msg=""; delete PADS["sigpad"]; S.sigs[j.sigVer]=img; load(); }, function(e){ S.msg=errText(e); render(); }); }
+  else if(act==="pinChange"){ var a=val("pin-new"), b=val("pin-new2"), m=$("pin-msg");
+    function say(s,ok){ m.hidden=false; m.className=ok?"okmsg":"err"; m.textContent=s; }
+    if(!/^\d{4,8}$/.test(a)) return say("密碼請輸入 4 到 8 位數字。"); if(a!==b) return say("兩次輸入的不一樣。");
+    api("gmPin",{pin:S.pin, newPin:a}).then(function(){ S.pin=a; $("pin-new").value=""; $("pin-new2").value=""; say("密碼已更換，下次用新密碼進入。",true); }, function(e){ say(errText(e)); }); }
+  else if(act==="approve"){ var r3=reqById(S.detail); if(S.busy) return; S.busy="approve"; var note=val("ap-note"); render();
+    api("gmApprove",{pin:S.pin, id:r3.id, ver:r3.ver, note:note}).then(function(j){ S.busy=false; upsert(j.req); render(); }, function(e){ S.busy=false; failReload(e); }); }
+  else if(act==="reject"){ var r4=reqById(S.detail), why=val("rj-reason"); if(!why){ var rm=$("rj-msg"); rm.hidden=false; rm.textContent=ERR.reason; return; } if(S.busy) return; S.busy="reject"; render();
+    api("gmReject",{pin:S.pin, id:r4.id, ver:r4.ver, reason:why}).then(function(j){ S.busy=false; upsert(j.req); render(); }, function(e){ S.busy=false; failReload(e); }); }
+});
+document.addEventListener("keydown",function(e){ if(e.key==="Escape" && !$("viewer").hidden) $("viewer").hidden=true;
+  if(e.key==="Enter"){ if(e.target.id==="gm-pin"){ var b=$("btn-gm"); if(b) b.click(); } if(e.target.id==="lg-code"){ var c=$("btn-code"); if(c) c.click(); } } });
+function failReload(e){ S.msg=errText(e); load(); }
+function submitForm(){
+  if(S.busy) return; saveForm(); var f=S.form, m=$("f-msg");
+  var amt=Number(String(f.amount).replace(/[,，\s]/g,""));
+  var miss=[]; if(!f.by) miss.push("申請人"); if(!f.cat) miss.push("請款類別"); if(!f.unit) miss.push("這筆錢算哪一店的"); if(!f.payee) miss.push("受款對象"); if(!(amt>0)) miss.push("金額"); if(!f.purpose) miss.push("用途說明");
+  if(f.method==="匯款"){ if(!f.bank) miss.push("銀行"); if(!f.acct) miss.push("帳號"); if(!f.holder) miss.push("戶名"); }
+  if(!padInked("f-sig")) miss.push("申請人簽名");
+  if(miss.length){ m.hidden=false; m.textContent="還沒填："+miss.join("、"); m.scrollIntoView({block:"center"}); return; }
+  var req={cat:f.cat, unit:f.unit, payee:f.payee, amount:Math.round(amt), method:f.method, bank:f.bank, acct:f.acct, holder:f.holder, purpose:f.purpose, due:f.due, urgent:f.urgent};
+  var fresh=f.photos.filter(function(p){return p.data;}).map(function(p){return p.data;}), kept=f.photos.filter(function(p){return p.id;}).map(function(p){return p.id;});
+  req.bySig=padImg("f-sig");
+  S.busy=true; render();
+  var call=f.editId? api("resubmit",{code:S.code, me:f.by, id:f.editId, ver:f.ver, req:req, keep:kept, photos:fresh}) : api("submit",{code:S.code, me:f.by, req:req, photos:fresh});
+  S.lastBy=f.by; keep();
+  call.then(function(j){ S.busy=false; upsert(j.req); fresh.forEach(function(u,i){ var pid=j.req.photos[kept.length+i]; if(pid) S.photoCache[pid]=u; });
+      S.form=blankForm(); delete PADS["f-sig"]; S.tab="list"; S.detail=j.req.id; S.msg=""; render(); window.scrollTo(0,0); },
+    function(e){ S.busy=false; render(); var mm=$("f-msg"); if(mm){ mm.hidden=false; mm.textContent=errText(e); } });
+}
+
+/* 啟動 */
+function startApply(){
+  if(!LIVE){ S.names=ldb().names; return load(); }
+  if(!S.code) return render();
+  if(S.names.length) return load();
+  api("init",{code:S.code}).then(function(j){ S.names=j.names||[]; load(); }, function(e){ S.code=""; keep(); S.msg=errText(e); render(); });
+}
+if(!LIVE){ S.names=ldb().names; }
+if(S.view==="apply") startApply(); else render();
+</script>
+
+</body>
+</html>
