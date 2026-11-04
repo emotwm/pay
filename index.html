@@ -134,6 +134,13 @@ textarea{min-height:84px;resize:vertical}
 .boxes .in img{max-height:64px;width:auto;max-width:100%}
 .boxes .nm{font-family:var(--display);font-weight:700;font-size:17px}
 .boxes .dt{font-size:11px;color:#4B5C55;font-variant-numeric:tabular-nums}
+.slip td.amt{position:relative}
+.slip .st-paid{position:absolute;right:0;top:50%;transform:translateY(-50%);width:132px;max-width:none;pointer-events:none}
+.boxes .in.ap{position:relative}
+.boxes .in .st-ok{position:absolute;right:4px;bottom:16px;width:78px;max-height:none;opacity:.92;pointer-events:none}
+.boxes .in .st-box{width:118px;max-height:none}
+.boxes .in .st-seal{position:absolute;right:2px;bottom:10px;width:120px;max-height:none;opacity:.9;transform:rotate(-6deg);pointer-events:none}
+@media (max-width:440px){.boxes .in .st-seal{width:86px;right:0}.boxes .in .st-ok{width:62px;right:0}.boxes .in .st-box{width:92px}.slip .st-paid{width:104px}}
 .boxes .stamp{color:#BF3A2B;border:2px solid #BF3A2B;border-radius:4px;padding:2px 8px;font-weight:900;letter-spacing:.2em;transform:rotate(-6deg);font-size:14px}
 .boxes .wait{color:#8A949A}
 @media (max-width:440px){.boxes h3{letter-spacing:.1em}.boxes .in img{max-height:50px}}
@@ -208,6 +215,8 @@ function $(id){ return document.getElementById(id); }
 function val(id){ var e=$(id); return e?String(e.value||"").trim():""; }
 
 /* ===== 本機樣板資料（API 空白時才用）===== */
+/* 公司章只放在試用版；正式版的章由後端（登入後）提供，不放在公開的網頁檔 */
+var DEMO_SEAL="";
 var LKEY="ym-pay-demo-v1", SKEY="ym-pay-session";
 function demoReceipt(title, lines, total){
   try{
@@ -224,7 +233,7 @@ function demoReceipt(title, lines, total){
 }
 function seedDB(){
   var now=Date.now(), H=3600e3, D=24*H;
-  var db={reqs:[], photos:{}, sigs:{}, sigVer:0, pin:"1234", names:["姚東妍","廖宛如","曾芳新"], seq:{}, fails:0};
+  var db={reqs:[], photos:{}, sigs:{}, sigVer:0, pin:"1234", names:["姚東妍","廖宛如","曾芳新"], seq:{}, fails:0, staff:{}};
   function add(o, img){
     var id="r"+(now-o.ago); var ph=[];
     if(img){ var pid="p"+id; db.photos[pid]=img; ph.push(pid); }
@@ -259,19 +268,31 @@ function lsave(){ try{ localStorage.setItem(LKEY, JSON.stringify(DB)); }catch(e)
 function lerr(code){ var e=new Error(code); e.code=code; throw e; }
 function rocKey(t){ var d=new Date(t); return (d.getFullYear()-1911)+pad(d.getMonth()+1)+pad(d.getDate()); }
 function strip(r){ var o={},k; for(k in r) o[k]=r[k]; return o; }
+function staffSigsOf(db){ var o={},k; db.staff=db.staff||{}; for(k in db.staff) o[k]=db.staff[k].sig; return o; }
+function localSig(db,me,p){
+  db.staff=db.staff||{}; p=p||{}; var rec=db.staff[me];
+  if(p.newSig){
+    if(rec && String(p.oldPin||"")!==rec.pin) lerr("spin");
+    if(!/^\d{4,8}$/.test(String(p.pin||""))) lerr("pinfmt");
+    db.staff[me]={sig:p.newSig, pin:String(p.pin)}; return p.newSig;
+  }
+  if(!rec) lerr("nosig2");
+  if(String(p.pin||"")!==rec.pin) lerr("spin");
+  return rec.sig;
+}
 var Local={
-  init:function(d){ var db=ldb(); return {names:db.names, hasSig:!!db.sigVer}; },
-  list:function(d){ var db=ldb(); if(d.pin!=null && d.pin!==db.pin) lerr("pin"); return {reqs:db.reqs.map(strip), sigs:db.sigs}; },
-  submit:function(d){ var db=ldb(); var f=d.req, at=Date.now(), key=rocKey(at); db.seq[key]=(db.seq[key]||0)+1;
+  init:function(d){ var db=ldb(); return {names:db.names, hasSig:!!db.sigVer, staffSigs:staffSigsOf(db)}; },
+  list:function(d){ var db=ldb(); if(d.pin!=null && d.pin!==db.pin) lerr("pin"); return {reqs:db.reqs.map(strip), sigs:db.sigs, staffSigs:staffSigsOf(db), seal:DEMO_SEAL}; },
+  submit:function(d){ var db=ldb(); var sg=localSig(db,d.me,d.sigp); var f=d.req, at=Date.now(), key=rocKey(at); db.seq[key]=(db.seq[key]||0)+1;
     var ph=(d.photos||[]).map(function(u,i){ var pid="p"+at+"_"+i; db.photos[pid]=u; return pid; });
     var r={id:"r"+at, no:key+"-"+pad(db.seq[key]), status:"pending", at:at, by:d.me, photos:ph, approvedAt:0, approveNote:"", sigVer:0, rejectReason:"", rejectedAt:0, paidAt:"", paidNote:"", paidBy:"", ver:1, log:[{t:at, who:d.me, what:"送出請款"}]};
-    fill(r,f); db.reqs.unshift(r); lsave(); return {req:strip(r)}; },
-  resubmit:function(d){ var db=ldb(), r=find(db,d.id); if(r.status!=="rejected") lerr("state"); if(r.ver!==d.ver) lerr("ver");
+    fill(r,f); r.bySig=sg; db.reqs.unshift(r); lsave(); return {req:strip(r)}; },
+  resubmit:function(d){ var db=ldb(), r=find(db,d.id); if(r.status!=="rejected") lerr("state"); if(r.ver!==d.ver) lerr("ver"); var sg=localSig(db,d.me,d.sigp);
     var keep=(d.keep||[]).filter(function(p){ return r.photos.indexOf(p)>=0; }), at=Date.now();
     var add=(d.photos||[]).map(function(u,i){ var pid="p"+at+"_"+i; db.photos[pid]=u; return pid; });
-    fill(r,d.req); r.photos=keep.concat(add); r.status="pending"; r.rejectReason=""; r.rejectedAt=0; r.ver++; r.log.push({t:at, who:d.me, what:"修改後重新送出"}); lsave(); return {req:strip(r)}; },
+    fill(r,d.req); r.by=d.me; r.bySig=sg; r.photos=keep.concat(add); r.status="pending"; r.rejectReason=""; r.rejectedAt=0; r.ver++; r.log.push({t:at, who:d.me, what:"修改後重新送出"}); lsave(); return {req:strip(r)}; },
   withdraw:function(d){ var db=ldb(), r=find(db,d.id); if(r.status!=="pending") lerr("state"); r.status="withdrawn"; r.ver++; r.log.push({t:Date.now(), who:d.me, what:"撤回"}); lsave(); return {req:strip(r)}; },
-  pay:function(d){ var db=ldb(), r=find(db,d.id); if(r.status!=="approved") lerr("state"); r.status="paid"; r.paidAt=d.date||today(); r.paidNote=d.note||""; r.paidBy=d.me; r.paidSig=String(d.sig||""); r.ver++; r.log.push({t:Date.now(), who:d.me, what:"登記已付款"}); lsave(); return {req:strip(r)}; },
+  pay:function(d){ var db=ldb(), r=find(db,d.id); if(r.status!=="approved") lerr("state"); var sg=localSig(db,d.me,d.sigp); r.status="paid"; r.paidAt=d.date||today(); r.paidNote=d.note||""; r.paidBy=d.me; r.paidSig=sg; r.paidAt2=Date.now(); r.ver++; r.log.push({t:Date.now(), who:d.me, what:"登記已付款"}); lsave(); return {req:strip(r)}; },
   photo:function(d){ var db=ldb(); if(!db.photos[d.id]) lerr("photo"); return {data:db.photos[d.id]}; },
   gmCheck:function(d){ var db=ldb(); if(d.pin!==db.pin) lerr("pin"); return {hasSig:!!db.sigVer}; },
   gmSig:function(d){ var db=ldb(); if(d.pin!==db.pin) lerr("pin"); db.sigVer++; db.sigs[db.sigVer]=d.sig; lsave(); return {sigVer:db.sigVer}; },
@@ -282,10 +303,10 @@ var Local={
   gmPin:function(d){ var db=ldb(); if(d.pin!==db.pin) lerr("pin"); if(!/^\d{4,8}$/.test(d.newPin||"")) lerr("pinfmt"); db.pin=d.newPin; lsave(); return {}; }
 };
 function find(db,id){ for(var i=0;i<db.reqs.length;i++) if(db.reqs[i].id===id) return db.reqs[i]; lerr("gone"); }
-function fill(r,f){ r.bySig=String(f.bySig||""); ["cat","unit","payee","method","bank","acct","holder","purpose","due"].forEach(function(k){ r[k]=String(f[k]||""); }); r.amount=Math.round(Number(f.amount)||0); r.urgent=!!f.urgent; if(r.method!=="匯款"){ r.bank=""; r.acct=""; r.holder=""; } }
+function fill(r,f){ ["cat","unit","payee","method","bank","acct","holder","purpose","due"].forEach(function(k){ r[k]=String(f[k]||""); }); r.amount=Math.round(Number(f.amount)||0); r.urgent=!!f.urgent; if(r.method!=="匯款"){ r.bank=""; r.acct=""; r.holder=""; } }
 
 /* ===== 連線 ===== */
-var ERR={code:"通行碼不正確，請再輸入一次。", sig:"簽名沒有讀到，請清除後重簽。", pin:"審核密碼不正確。", pinfmt:"密碼請輸入 4 到 8 位數字。", locked:"密碼錯太多次，請 10 分鐘後再試。",
+var ERR={spin:"簽名密碼不正確。", nosig2:"這個人還沒留存簽名，請先簽名並設定簽名密碼。", code:"通行碼不正確，請再輸入一次。", sig:"簽名沒有讀到，請清除後重簽。", pin:"審核密碼不正確。", pinfmt:"密碼請輸入 4 到 8 位數字。", locked:"密碼錯太多次，請 10 分鐘後再試。",
   nosig:"還沒有留存老闆簽名。", ver:"這張請款單剛剛有人更動過，已重新整理，請再確認一次。", state:"這張請款單的狀態已經變了，已重新整理。",
   gone:"找不到這張請款單，請重新整理。", who:"名單裡找不到你的名字，請通知管理部。", reason:"退回要寫原因，申請人才知道怎麼改。",
   photo:"單據照片讀不到，請重新整理再試。", fields:"有必填欄位沒填。", setup:"試算表還沒設定完成，請通知管理部。", big:"照片太大，請少放幾張或重拍。"};
@@ -306,10 +327,11 @@ var S={view:"apply", tab:"list", me:"", code:"", names:[], pin:"", hasSig:false,
 function keep(){ try{ localStorage.setItem(SKEY, JSON.stringify({lastBy:S.lastBy, code:S.code, view:S.view})); }catch(e){} }
 function blankForm(){ return {editId:null, ver:0, by:S.lastBy||"", cat:"", unit:"", payee:"", amount:"", method:"匯款", bank:"", acct:"", holder:"", purpose:"", due:"", urgent:false, photos:[]}; }
 
+function setStaff(j){ if(j && j.staffSigs) S.staffSigs=j.staffSigs; if(j && j.seal) S.seal=j.seal; }
 function load(){
   S.loading=true; render();
   var p = S.view==="boss" ? {pin:S.pin} : {code:S.code};
-  return api("list", p).then(function(j){ S.reqs=j.reqs||[]; S.sigs=j.sigs||{}; S.loaded=true; S.loading=false; render(); },
+  return api("list", p).then(function(j){ setStaff(j); S.reqs=j.reqs||[]; S.sigs=j.sigs||{}; S.loaded=true; S.loading=false; render(); },
     function(e){ S.loading=false; if(e.code==="pin"){ S.pin=""; } if(e.code==="code"){ S.code=""; S.names=[]; keep(); } S.msg=errText(e); render(); });
 }
 function reqById(id){ for(var i=0;i<S.reqs.length;i++) if(S.reqs[i].id===id) return S.reqs[i]; return null; }
@@ -391,18 +413,50 @@ function formView(){
   h+='<div class="f" style="display:flex;flex-direction:column;gap:8px;font-size:14px;font-weight:700">單據照片<span class="hint" style="font-weight:400;color:var(--muted);font-size:12px">發票、收據、報價單都可以，用手機直接拍，最多 '+MAX_PHOTOS+' 張</span><div class="thumbs">'+
     f.photos.map(function(p,i){ var src=p.data||S.photoCache[p.id]||""; return '<div class="thumb">'+(src?'<img alt="單據 '+(i+1)+'" src="'+src+'">':'<span class="ld">讀取中</span>')+'<button type="button" class="x" data-act="rmPhoto" data-i="'+i+'" aria-label="移除第 '+(i+1)+' 張">✕</button></div>'; }).join("")+
     (f.photos.length<MAX_PHOTOS?'<label class="thumb add" for="f-file"><b>＋</b>加照片<input type="file" id="f-file" accept="image/*" multiple hidden></label>':'')+'</div></div>';
-  h+=padHtml("f-sig","申請人簽名","點框框會打開全螢幕簽名，簽好按完成","點這裡簽名");
+  h+=mySigHtml("f", f.by, "申請人");
   h+='<div id="f-msg" class="err" hidden></div>';
   h+='<div class="row"><button type="button" class="btn grow" id="btn-submit" data-act="submit">'+(S.busy?'<span class="spin"></span> 送出中…':(f.editId?'重新送出給老闆':'送出給老闆核准'))+'</button>'+
     (f.editId?'<button type="button" class="btn quiet" id="btn-cancel-edit" data-act="cancelEdit">取消修改</button>':'')+'</div>';
   return h+'</section>';
 }
 function sigOf(r){ return r.sigVer && S.sigs[r.sigVer] ? S.sigs[r.sigVer] : ""; }
+/* ===== 戳章（畫成圖片，存成圖片時也會一起出現）===== */
+var STAMPS={};
+function rocDot(t){ if(!t) return ""; var d=typeof t==="number"?new Date(t):new Date(String(t)+"T00:00:00"); if(isNaN(d)) return ""; return (d.getFullYear()-1911)+"."+pad(d.getMonth()+1)+"."+pad(d.getDate()); }
+function stampRound(word, date){
+  var key="r|"+word+"|"+date; if(STAMPS[key]) return STAMPS[key];
+  try{
+    var c=document.createElement("canvas"), N=220; c.width=N; c.height=N; var x=c.getContext("2d"), R=N/2, col="rgba(196,40,32,.9)";
+    x.strokeStyle=col; x.fillStyle=col; x.translate(R,R);
+    x.lineWidth=7; x.beginPath(); x.arc(0,0,R-6,0,7); x.stroke();
+    x.lineWidth=2.5; x.beginPath(); x.arc(0,0,R-17,0,7); x.stroke();
+    var F='"Noto Serif TC","Songti TC","PMingLiU",serif', top="倚盟電訊";
+    x.font="900 30px "+F; x.textAlign="center"; x.textBaseline="middle";
+    var span=1.55, n=top.length;
+    for(var i=0;i<n;i++){ var a=-Math.PI/2-span/2+span*(i+.5)/n; x.save(); x.rotate(a+Math.PI/2); x.fillText(top[i],0,-(R-40)); x.restore(); }
+    x.lineWidth=2; x.beginPath(); x.moveTo(-R+34,-14); x.lineTo(R-34,-14); x.moveTo(-R+34,30); x.lineTo(R-34,30); x.stroke();
+    x.font="900 38px "+F; x.fillText(word,0,8);
+    x.font="700 24px "+F; x.fillText(date,0,56);
+    return STAMPS[key]=c.toDataURL("image/png");
+  }catch(e){ return ""; }
+}
+function stampRect(word, date, color, tilt){
+  var key="b|"+word+"|"+date+"|"+color; if(STAMPS[key]) return STAMPS[key];
+  try{
+    var c=document.createElement("canvas"), W=280, H=190; c.width=W; c.height=H; var x=c.getContext("2d");
+    x.translate(W/2,H/2); x.rotate((tilt||-10)*Math.PI/180); x.strokeStyle=color; x.fillStyle=color;
+    var w=210, h=112; x.lineWidth=6; x.strokeRect(-w/2,-h/2,w,h); x.lineWidth=2; x.strokeRect(-w/2+9,-h/2+9,w-18,h-18);
+    var F='"Noto Serif TC","Songti TC","PMingLiU",serif'; x.textAlign="center"; x.textBaseline="middle";
+    x.font="900 46px "+F; x.fillText(word.split("").join(" "),0,-14);
+    x.font="700 22px "+F; x.fillText(date,0,30);
+    return STAMPS[key]=c.toDataURL("image/png");
+  }catch(e){ return ""; }
+}
 function slip(r){
   var st=ST[r.status]||["",""];
   var h='<article class="slip"><div class="head"><b>請款單</b><span>單號 '+esc(r.no)+'<br>'+fmt(r.at)+'</span></div>';
   h+='<div class="row"><span class="pill '+st[1]+'">'+st[0]+'</span>'+(r.urgent?'<span class="urgent">急件</span>':'')+(r.demo?'<span class="demo">範例</span>':'')+'</div>';
-  h+='<table><tr><th>受款對象</th><td><b>'+esc(r.payee)+'</b></td></tr><tr><th>金額</th><td class="big">'+money(r.amount)+'</td></tr>'+
+  h+='<table><tr><th>受款對象</th><td><b>'+esc(r.payee)+'</b></td></tr><tr><th>金額</th><td class="big amt">'+money(r.amount)+(r.status==="paid"?'<img class="st-paid" alt="付訖章" src="'+stampRect("付訖", rocDot(r.paidAt), "rgba(196,40,32,.88)", -12)+'">':'')+'</td></tr>'+
     '<tr><th>請款類別</th><td>'+esc(r.cat)+'</td></tr>'+(r.unit?'<tr><th>費用算在</th><td>'+esc(r.unit)+'</td></tr>':'')+'<tr><th>用途說明</th><td>'+esc(r.purpose)+'</td></tr>'+
     '<tr><th>付款方式</th><td>'+esc(r.method)+(r.method==="匯款"?'<div class="cap">'+esc(r.bank)+'<br>帳號 <span class="num">'+esc(r.acct)+'</span>　戶名 '+esc(r.holder)+'</div>':'')+'</td></tr>'+
     '<tr><th>希望付款日</th><td>'+(r.due?fmtD(r.due):'<span class="cap">沒有指定</span>')+'</td></tr>';
@@ -411,7 +465,9 @@ function slip(r){
   h+='</table>';
   var sig=sigOf(r), approvedLike=(r.status==="approved"||r.status==="paid");
   h+='<div class="boxes"><div><h3>申請人</h3><div class="in">'+(r.bySig?'<img alt="'+esc(r.by)+'簽名" src="'+r.bySig+'"><span class="dt">'+esc(r.by)+'</span>':'<span class="nm">'+esc(r.by)+'</span>')+'<span class="dt">'+fmt(r.at)+'</span></div></div>'+
-    '<div><h3>核准</h3><div class="in">'+(approvedLike?(sig?'<img alt="老闆簽名" src="'+sig+'">':'<span class="stamp">核准</span>')+'<span class="dt">'+fmt(r.approvedAt)+'</span>':(r.status==="rejected"?'<span class="stamp">退回</span><span class="dt">'+fmt(r.rejectedAt)+'</span>':'<span class="wait">'+(r.status==="withdrawn"?'已撤回':'等待核准')+'</span>'))+'</div></div>'+
+    '<div><h3>核准</h3><div class="in ap">'+(approvedLike?(sig?'<img alt="老闆簽名" src="'+sig+'">':'')+(S.seal?'<img class="st-seal" alt="倚盟電訊有限公司章" src="'+S.seal+'">':'<img class="st-ok" alt="核准章" src="'+stampRound("核准", rocDot(r.approvedAt))+'">')+'<span class="dt">'+fmt(r.approvedAt)+'</span>':
+      (r.status==="rejected"?'<img class="st-box" alt="退回章" src="'+stampRect("退回", rocDot(r.rejectedAt), "rgba(196,40,32,.88)", -8)+'"><span class="dt">'+fmt(r.rejectedAt)+'</span>':
+      (r.status==="withdrawn"?'<img class="st-box" alt="作廢章" src="'+stampRect("作廢", rocDot((r.log&&r.log.length)?r.log[r.log.length-1].t:Date.now()), "rgba(110,118,130,.9)", -8)+'">':'<span class="wait">等待核准</span>')))+'</div></div>'+
     '<div><h3>付款</h3><div class="in">'+(r.status==="paid"?(r.paidSig?'<img alt="'+esc(r.paidBy)+'簽名" src="'+r.paidSig+'"><span class="dt">'+esc(r.paidBy)+'</span>':'<span class="nm">'+esc(r.paidBy)+'</span>')+'<span class="dt">'+fmtD(r.paidAt)+' 付款</span>':'<span class="wait">'+(r.status==="approved"?'待付款':'—')+'</span>')+'</div></div></div>';
   return h+'</article>';
 }
@@ -431,7 +487,7 @@ function detailView(r, boss){
   return h;
 }
 function applyActions(r){
-  var h='';
+  var h=''; if(S.payBy==null) S.payBy=S.lastBy||"";
   if(r.status==="pending"){
     h+='<section class="panel"><h2>等老闆核准中</h2><div class="small muted">送錯了可以先撤回，撤回後老闆那邊就看不到。</div>';
     if(S.act==="withdraw") h+='<div class="row"><span class="grow small">確定撤回這張請款單？</span><button type="button" class="btn danger sm" id="btn-wd-yes" data-act="withdrawYes">確定撤回</button><button type="button" class="btn quiet sm" data-act="actNone">不要</button></div>';
@@ -441,8 +497,8 @@ function applyActions(r){
     h+='<section class="panel"><h2>修改後重新送出</h2><div class="small muted">照老闆的意見改好，會用同一個單號重新送給老闆。</div><div class="row"><button type="button" class="btn" id="btn-edit" data-act="edit">修改這張請款單</button></div></section>';
   } else if(r.status==="approved"){
     h+='<section class="panel"><h2>登記付款</h2><div class="small muted">錢付出去之後在這裡登記，列表就會變成「已付款」。</div>'+
-      '<label class="f" for="pay-by">付款登記人<select id="pay-by"><option value="">請選擇</option>'+S.names.map(function(n){ return '<option'+(S.lastBy===n?' selected':'')+'>'+esc(n)+'</option>'; }).join("")+'</select></label>'+
-      padHtml("pay-sig","付款人簽名","點框框會打開全螢幕簽名，簽好按完成","點這裡簽名")+
+      '<label class="f" for="pay-by">付款登記人<select id="pay-by"><option value="">請選擇</option>'+S.names.map(function(n){ return '<option'+(S.payBy===n?' selected':'')+'>'+esc(n)+'</option>'; }).join("")+'</select></label>'+
+      mySigHtml("pay", S.payBy, "付款人")+
       '<div id="pay-msg" class="err" hidden></div>'+
       '<div class="grid2"><label class="f" for="pay-date">付款日期<input type="date" id="pay-date" value="'+today()+'"></label><label class="f" for="pay-note">備註<span class="hint">例如：網銀轉帳完成、現金已交廠商</span><input type="text" id="pay-note"></label></div>'+
       '<div class="row"><button type="button" class="btn" id="btn-pay" data-act="pay">'+(S.busy?'<span class="spin"></span> 儲存中…':'登記已付款')+'</button></div></section>';
@@ -515,6 +571,8 @@ function after(){
     if(target){ var t=document.createElement("div"); t.innerHTML=html; target.replaceWith(t.firstChild); } }; }
   var ff=$("f-file"); if(ff) ff.onchange=function(){ addPhotos(ff.files); };
   var py=$("f-payee"); if(py) py.onchange=function(){ autofill(py.value); };
+  var fb=$("f-by"); if(fb) fb.onchange=function(){ saveForm(); delete S.sigChange.f; delete PADS["f-sig"]; render(); };
+  var pb=$("pay-by"); if(pb) pb.onchange=function(){ S.payBy=pb.value; delete S.sigChange.pay; delete PADS["pay-sig"]; var nt=val("pay-note"), dt=val("pay-date"); render(); if($("pay-note")) $("pay-note").value=nt; if($("pay-date")&&dt) $("pay-date").value=dt; };
 }
 var pending={};
 function fetchPhoto(id){
@@ -546,6 +604,36 @@ function compress(file){
   });
 }
 var PADS={};
+S.staffSigs={}; S.sigChange={};
+/* 個人簽名：第一次簽名＋設定簽名密碼，之後只要輸入密碼，留存的簽名就會蓋上（跟公告簽收的核定方式一樣） */
+function mySigHtml(px, name, who){
+  if(!name) return '<div class="padlabel">'+who+'簽名<span class="hint">先選上面的'+who+'</span></div>';
+  var saved=S.staffSigs[name], ch=S.sigChange[px];
+  if(saved && !ch){
+    return '<div class="padlabel">'+who+'簽名<span class="hint">'+esc(name)+' 已留存簽名，輸入簽名密碼就會蓋上</span>'+
+      '<div class="sigprev"><img alt="'+esc(name)+'的簽名" src="'+saved+'"></div>'+
+      '<label class="f" for="'+px+'-pin">簽名密碼<input type="password" inputmode="numeric" autocomplete="off" id="'+px+'-pin"></label>'+
+      '<div class="row"><button type="button" class="link small" data-act="sigChg" data-v="'+px+'">更換簽名</button></div></div>';
+  }
+  var h='<div class="padlabel">'+(ch?'更換 '+esc(name)+' 的簽名':esc(name)+' 第一次使用：先留存簽名')+'<span class="hint">'+(ch?'簽新的簽名，並輸入原本的簽名密碼':'簽一次就好，之後只要輸入簽名密碼，簽名就會自動蓋上')+'</span></div>';
+  h+=padHtml(px+"-sig", who+"簽名", "", "點這裡簽名");
+  if(ch) h+='<label class="f" for="'+px+'-old">原本的簽名密碼<input type="password" inputmode="numeric" autocomplete="off" id="'+px+'-old"></label>';
+  h+='<div class="grid2"><label class="f" for="'+px+'-pin">'+(ch?'新的':'設定')+'簽名密碼<span class="hint">4 到 8 位數字，只有自己知道</span><input type="password" inputmode="numeric" autocomplete="off" id="'+px+'-pin"></label>'+
+     '<label class="f" for="'+px+'-pin2">再輸入一次<span class="hint">&nbsp;</span><input type="password" inputmode="numeric" autocomplete="off" id="'+px+'-pin2"></label></div>';
+  if(ch) h+='<div class="row"><button type="button" class="link small" data-act="sigChgNo" data-v="'+px+'">取消更換</button></div>';
+  return h;
+}
+function sigPayload(px, name){
+  var saved=S.staffSigs[name], ch=S.sigChange[px], pin=val(px+"-pin");
+  if(saved && !ch){ if(!pin) return {err:"請輸入簽名密碼。"}; return {p:{pin:pin}}; }
+  if(!padInked(px+"-sig")) return {err:"請先簽名。"};
+  if(!/^\d{4,8}$/.test(pin)) return {err:"簽名密碼請輸入 4 到 8 位數字。"};
+  if(pin!==val(px+"-pin2")) return {err:"兩次輸入的簽名密碼不一樣。"};
+  var p={pin:pin, newSig:padImg(px+"-sig")};
+  if(ch){ p.oldPin=val(px+"-old"); if(!p.oldPin) return {err:"請輸入原本的簽名密碼。"}; }
+  return {p:p};
+}
+function sigDone(px, name, img){ if(img) S.staffSigs[name]=img; delete S.sigChange[px]; delete PADS[px+"-sig"]; }
 /* 頁面上只放一個「點這裡簽名」的框；點下去開全螢幕簽名板，按「完成」後把簽名縮圖放回框裡 */
 function padHtml(id,label,hint,place){
   var img=PADS[id]&&PADS[id].img;
@@ -597,11 +685,11 @@ document.addEventListener("click",function(ev){
   else if(act==="tab"){ saveForm(); S.tab=v; S.detail=null; S.act=null; S.msg=""; if(v==="new"&&!S.form) S.form=blankForm(); render(); window.scrollTo(0,0); }
   else if(act==="filter"){ S.filter=v; render(); }
   else if(act==="reload"){ S.msg=""; load(); }
-  else if(act==="open"){ saveForm(); delete PADS["pay-sig"]; S.detail=t.getAttribute("data-id"); S.act=null; S.msg=""; render(); window.scrollTo(0,0); }
+  else if(act==="open"){ saveForm(); delete PADS["pay-sig"]; delete S.sigChange.pay; S.payBy=S.lastBy; S.detail=t.getAttribute("data-id"); S.act=null; S.msg=""; render(); window.scrollTo(0,0); }
   else if(act==="back"){ S.detail=null; S.act=null; S.msg=""; render(); }
   else if(act==="method"){ saveForm(); S.form.method=v; render(); }
   else if(act==="rmPhoto"){ ev.preventDefault(); saveForm(); S.form.photos.splice(Number(t.getAttribute("data-i")),1); render(); }
-  else if(act==="cancelEdit"){ S.form=blankForm(); delete PADS["f-sig"]; S.tab="list"; render(); }
+  else if(act==="cancelEdit"){ S.form=blankForm(); delete PADS["f-sig"]; delete S.sigChange.f; S.tab="list"; render(); }
   else if(act==="submit") submitForm();
   else if(act==="viewPhoto"){ var src=S.photoCache[t.getAttribute("data-id")]; if(src) openViewer(src,"","",""); }
   else if(act==="slipImg"){ slipImage(); }
@@ -609,10 +697,10 @@ document.addEventListener("click",function(ev){
   else if(act==="withdraw"){ S.act="withdraw"; render(); }
   else if(act==="actNone"){ S.act=null; render(); }
   else if(act==="withdrawYes"){ var r0=reqById(S.detail); api("withdraw",{code:S.code, me:r0.by, id:r0.id}).then(function(j){ upsert(j.req); S.act=null; render(); }, failReload); }
-  else if(act==="edit"){ var r1=reqById(S.detail); S.form={editId:r1.id, ver:r1.ver, by:r1.by, cat:r1.cat, unit:r1.unit, payee:r1.payee, amount:String(r1.amount), method:r1.method, bank:r1.bank, acct:r1.acct, holder:r1.holder, purpose:r1.purpose, due:r1.due, urgent:r1.urgent, photos:r1.photos.map(function(id){return {id:id};})};
+  else if(act==="edit"){ delete S.sigChange.f; var r1=reqById(S.detail); S.form={editId:r1.id, ver:r1.ver, by:r1.by, cat:r1.cat, unit:r1.unit, payee:r1.payee, amount:String(r1.amount), method:r1.method, bank:r1.bank, acct:r1.acct, holder:r1.holder, purpose:r1.purpose, due:r1.due, urgent:r1.urgent, photos:r1.photos.map(function(id){return {id:id};})};
     delete PADS["f-sig"]; S.detail=null; S.tab="new"; render(); window.scrollTo(0,0); }
-  else if(act==="pay"){ var r2=reqById(S.detail), pb=val("pay-by"), pd=val("pay-date")||today(), pn=val("pay-note"); var pm=$("pay-msg"); if(!pb){ pm.hidden=false; pm.textContent="請選付款登記人。"; return; } if(!padInked("pay-sig")){ pm.hidden=false; pm.textContent="請付款人簽名。"; return; } var ps=padImg("pay-sig"); if(S.busy) return; S.busy=true; S.lastBy=pb; keep(); render();
-    api("pay",{code:S.code, me:pb, id:r2.id, date:pd, note:pn, sig:ps}).then(function(j){ S.busy=false; delete PADS["pay-sig"]; upsert(j.req); render(); }, function(e){ S.busy=false; failReload(e); }); }
+  else if(act==="pay"){ var r2=reqById(S.detail), pb=val("pay-by"), pd=val("pay-date")||today(), pn=val("pay-note"); var pm=$("pay-msg"); if(!pb){ pm.hidden=false; pm.textContent="請選付款登記人。"; return; } var ps=sigPayload("pay", pb); if(ps.err){ pm.hidden=false; pm.textContent=ps.err; return; } if(S.busy) return; S.busy=true; S.lastBy=pb; keep(); render();
+    api("pay",{code:S.code, me:pb, id:r2.id, date:pd, note:pn, sigp:ps.p}).then(function(j){ S.busy=false; sigDone("pay", pb, j.req.paidSig); upsert(j.req); render(); }, function(e){ S.busy=false; failReload(e); }); }
   else if(act==="gmLogin"){ var p=val("gm-pin"); if(!p||S.busy) return; S.busy=true; S.msg=""; render();
     api("gmCheck",{pin:p}).then(function(j){ S.busy=false; S.pin=p; S.hasSig=!!j.hasSig; render(); if(S.hasSig) load(); }, function(e){ S.busy=false; S.msg=errText(e); render(); }); }
   else if(act==="bossOut"){ S.pin=""; S.detail=null; S.reqs=[]; S.loaded=false; S.boss={tab:"todo"}; render(); }
@@ -621,6 +709,8 @@ document.addEventListener("click",function(ev){
   else if(act==="sigChange"){ S.boss.sigMode=true; S.boss.menu=false; render(); }
   else if(act==="sigCancel"){ S.boss.sigMode=false; render(); }
   else if(act==="sigClear"){ delete PADS["sigpad"]; render(); }
+  else if(act==="sigChg"){ saveForm(); S.sigChange[v]=1; render(); }
+  else if(act==="sigChgNo"){ saveForm(); delete S.sigChange[v]; delete PADS[v+"-sig"]; render(); }
   else if(act==="padOpen"){ padOpen(v, t.getAttribute("data-t")); }
   else if(act==="padCancel"){ padClose(); }
   else if(act==="padRedo"){ sizePad(); }
@@ -644,16 +734,15 @@ function submitForm(){
   var amt=Number(String(f.amount).replace(/[,，\s]/g,""));
   var miss=[]; if(!f.by) miss.push("申請人"); if(!f.cat) miss.push("請款類別"); if(!f.payee) miss.push("受款對象"); if(!(amt>0)) miss.push("金額"); if(!f.purpose) miss.push("用途說明");
   if(f.method==="匯款"){ if(!f.bank) miss.push("銀行"); if(!f.acct) miss.push("帳號"); if(!f.holder) miss.push("戶名"); }
-  if(!padInked("f-sig")) miss.push("申請人簽名");
   if(miss.length){ m.hidden=false; m.textContent="還沒填："+miss.join("、"); m.scrollIntoView({block:"center"}); return; }
+  var sp=sigPayload("f", f.by); if(sp.err){ m.hidden=false; m.textContent=sp.err; m.scrollIntoView({block:"center"}); return; }
   var req={cat:f.cat, unit:f.unit, payee:f.payee, amount:Math.round(amt), method:f.method, bank:f.bank, acct:f.acct, holder:f.holder, purpose:f.purpose, due:f.due, urgent:f.urgent};
   var fresh=f.photos.filter(function(p){return p.data;}).map(function(p){return p.data;}), kept=f.photos.filter(function(p){return p.id;}).map(function(p){return p.id;});
-  req.bySig=padImg("f-sig");
   S.busy=true; render();
-  var call=f.editId? api("resubmit",{code:S.code, me:f.by, id:f.editId, ver:f.ver, req:req, keep:kept, photos:fresh}) : api("submit",{code:S.code, me:f.by, req:req, photos:fresh});
+  var call=f.editId? api("resubmit",{code:S.code, me:f.by, id:f.editId, ver:f.ver, req:req, keep:kept, photos:fresh, sigp:sp.p}) : api("submit",{code:S.code, me:f.by, req:req, photos:fresh, sigp:sp.p});
   S.lastBy=f.by; keep();
-  call.then(function(j){ S.busy=false; upsert(j.req); fresh.forEach(function(u,i){ var pid=j.req.photos[kept.length+i]; if(pid) S.photoCache[pid]=u; });
-      S.form=blankForm(); delete PADS["f-sig"]; S.tab="list"; S.detail=j.req.id; S.msg=""; render(); window.scrollTo(0,0); },
+  call.then(function(j){ S.busy=false; sigDone("f", f.by, j.req.bySig); upsert(j.req); fresh.forEach(function(u,i){ var pid=j.req.photos[kept.length+i]; if(pid) S.photoCache[pid]=u; });
+      S.form=blankForm(); S.tab="list"; S.detail=j.req.id; S.msg=""; render(); window.scrollTo(0,0); },
     function(e){ S.busy=false; render(); var mm=$("f-msg"); if(mm){ mm.hidden=false; mm.textContent=errText(e); } });
 }
 
