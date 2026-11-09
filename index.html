@@ -818,22 +818,94 @@ function openViewer(src,hint,dl,name){
   $("viewer").hidden=false;
 }
 function closeViewer(){ $("viewer").hidden=true; if(dlUrl){ try{ URL.revokeObjectURL(dlUrl); }catch(e){} dlUrl=""; } }
-function loadH2C(){
-  if(window.html2canvas) return Promise.resolve();
-  return new Promise(function(res,rej){ var sc=document.createElement("script"); sc.src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"; sc.onload=function(){ res(); }; sc.onerror=function(){ rej(new Error("load")); }; document.head.appendChild(sc); });
+/* 存成圖片：直接在畫布上畫一張請款單（不靠截圖，排版不會跑掉；不論手機深色或淺色模式，圖片一律白底） */
+function loadImg(src){ return new Promise(function(res){ if(!src) return res(null); var im=new Image(); im.onload=function(){ res(im); }; im.onerror=function(){ res(null); }; im.src=src; }); }
+function drawSlip(r){
+  var SANS='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif', SERIF='"Noto Serif TC","Songti TC","PMingLiU",serif';
+  var sig=sigOf(r), approvedLike=(r.status==="approved"||r.status==="paid");
+  var wd=r.status==="withdrawn"?rocDot((r.log&&r.log.length)?r.log[r.log.length-1].t:Date.now()):"";
+  var srcs={by:r.bySig, boss:approvedLike?sig:"", seal:approvedLike?(S.seal||stampRound("核准",rocDot(r.approvedAt))):"", paid:r.status==="paid"?r.paidSig:"",
+    paidSt:r.status==="paid"?stampRect("付訖", rocDot(r.paidAt), "rgba(196,40,32,.88)", -12):"",
+    rej:r.status==="rejected"?stampRect("退回", rocDot(r.rejectedAt), "rgba(196,40,32,.88)", -8):(r.status==="withdrawn"?stampRect("作廢", wd, "rgba(110,118,130,.9)", -8):"")};
+  var fontsReady=(document.fonts&&document.fonts.load)?Promise.all([document.fonts.load("900 40px "+SERIF,"請款單"),document.fonts.load("700 20px "+SANS,"請款"),document.fonts.load("400 20px "+SANS,"請款")]).catch(function(){}):Promise.resolve();
+  var keys=Object.keys(srcs);
+  return fontsReady.then(function(){ return Promise.all(keys.map(function(k){ return loadImg(srcs[k]); })); }).then(function(arr){
+    var I={}; keys.forEach(function(k,n){ I[k]=arr[n]; });
+    var W=860, P=44, LX=P, VX=P+150, VW=W-P-VX, SC=2;
+    var meas=document.createElement("canvas").getContext("2d");
+    function wrap(text,font,maxw){ meas.font=font; var out=[], line=""; String(text||"").split("").forEach(function(ch){ if(ch==="\n"){ out.push(line); line=""; return; } if(meas.measureText(line+ch).width>maxw && line){ out.push(line); line=ch; } else line+=ch; }); out.push(line); return out; }
+    var F={lab:"700 19px "+SANS, val:"400 20px "+SANS, valb:"700 20px "+SANS, cap:"400 17px "+SANS, big:"900 32px "+SANS};
+    var rows=[];
+    rows.push({l:"受款對象", parts:[{t:r.payee,f:F.valb,c:"#14251F",lh:30}]});
+    rows.push({l:"金額", parts:[{t:money(r.amount),f:F.big,c:"#14251F",lh:44}], amt:true});
+    rows.push({l:"請款類別", parts:[{t:r.cat,f:F.val,c:"#14251F",lh:30}]});
+    if(r.unit) rows.push({l:"費用算在", parts:[{t:r.unit,f:F.val,c:"#14251F",lh:30}]});
+    rows.push({l:"用途說明", parts:[{t:r.purpose,f:F.val,c:"#14251F",lh:30}]});
+    var pm=[{t:r.method,f:F.val,c:"#14251F",lh:30}];
+    if(r.method==="匯款"){ pm.push({t:r.bank,f:F.cap,c:"#4B5C55",lh:26}); pm.push({t:"帳號 "+r.acct+"　戶名 "+r.holder,f:F.cap,c:"#4B5C55",lh:26}); }
+    rows.push({l:"付款方式", parts:pm});
+    rows.push({l:"希望付款日", parts:[{t:r.due?fmtD(r.due):"沒有指定",f:r.due?F.val:F.cap,c:r.due?"#14251F":"#7A8580",lh:30}]});
+    if(r.approveNote) rows.push({l:"老闆備註", parts:[{t:r.approveNote,f:F.val,c:"#14251F",lh:30}]});
+    if(r.status==="rejected") rows.push({l:"退回原因", parts:[{t:r.rejectReason,f:F.val,c:"#B8322A",lh:30}]});
+    if(r.status==="paid"){ var pr=[{t:fmtD(r.paidAt)+" 由 "+r.paidBy+" 登記",f:F.val,c:"#14251F",lh:30}]; if(r.paidNote) pr.push({t:r.paidNote,f:F.cap,c:"#4B5C55",lh:26}); rows.push({l:"付款紀錄", parts:pr}); }
+    rows.forEach(function(rw){ var lines=[]; rw.parts.forEach(function(p){ wrap(p.t,p.f,VW-(rw.amt?150:0)).forEach(function(tx){ lines.push({t:tx,f:p.f,c:p.c,lh:p.lh}); }); }); rw.lines=lines; rw.h=lines.reduce(function(s,l){return s+l.lh;},0)+22; });
+    var headH=96, pillH=56, BOXH=220, BOXHEAD=44;
+    var H=P+headH+pillH+rows.reduce(function(s,rw){return s+rw.h;},0)+28+BOXH+P;
+    var cv=document.createElement("canvas"); cv.width=W*SC; cv.height=H*SC; var x=cv.getContext("2d"); x.scale(SC,SC);
+    x.fillStyle="#FFFFFF"; x.fillRect(0,0,W,H); x.textBaseline="middle";
+    // 表頭
+    x.fillStyle="#14251F"; x.font="900 40px "+SERIF; x.textAlign="left"; x.fillText("請 款 單",P,P+40);
+    x.font="400 18px "+SANS; x.textAlign="right"; x.fillStyle="#3A4A44"; x.fillText("單號 "+r.no,W-P,P+26); x.fillText(fmt(r.at),W-P,P+54);
+    var y=P+headH-12; x.fillStyle="#14251F"; x.fillRect(P,y,W-2*P,2); x.fillRect(P,y+5,W-2*P,2);
+    // 狀態
+    var st=ST[r.status]||["",""], PC={warn:["#FAEDCB","#8A5A00"],info:["#EFE4F7","#6B3597"],seal:["#F8E2DF","#B8322A"],ok:["#DCF0E5","#1D7350"],muted:["#ECEEF2","#5A6078"]}[st[1]]||["#ECEEF2","#5A6078"];
+    y+=18; x.font="700 17px "+SANS; x.textAlign="left"; var pw=x.measureText(st[0]).width+40;
+    x.fillStyle=PC[0]; rr(x,P,y,pw,32,16); x.fill(); x.fillStyle=PC[1]; x.beginPath(); x.arc(P+16,y+16,4,0,7); x.fill(); x.fillText(st[0],P+26,y+17);
+    if(r.urgent){ var ux=P+pw+10; x.fillStyle="#BF3A2B"; rr(x,ux,y+3,58,26,4); x.fill(); x.fillStyle="#fff"; x.font="900 16px "+SANS; x.fillText("急件",ux+13,y+17); }
+    y+=pillH-10;
+    // 欄位
+    x.textAlign="left";
+    rows.forEach(function(rw){
+      var top=y; x.font=F.lab; x.fillStyle="#4B5C55"; x.fillText(rw.l,LX,top+11+15);
+      var ly=top+11; rw.lines.forEach(function(l){ x.font=l.f; x.fillStyle=l.c; x.fillText(l.t,VX,ly+l.lh/2); ly+=l.lh; });
+      if(rw.amt && I.paidSt){ var sw=150, sh=sw*I.paidSt.height/I.paidSt.width; x.drawImage(I.paidSt,W-P-sw+6,top+rw.h/2-sh/2,sw,sh); }
+      y+=rw.h; x.fillStyle="#CDD1E0"; x.fillRect(P,y-1,W-2*P,1);
+    });
+    // 簽核三格
+    y+=28; var bw=(W-2*P)/3; x.strokeStyle="#14251F"; x.lineWidth=1.5; x.strokeRect(P,y,W-2*P,BOXH);
+    x.beginPath(); x.moveTo(P,y+BOXHEAD); x.lineTo(W-P,y+BOXHEAD); x.moveTo(P+bw,y); x.lineTo(P+bw,y+BOXH); x.moveTo(P+2*bw,y); x.lineTo(P+2*bw,y+BOXH); x.stroke();
+    x.font="700 18px "+SANS; x.fillStyle="#14251F"; x.textAlign="center";
+    ["申　請　人","核　　准","付　　款"].forEach(function(t,n){ x.fillText(t,P+bw*n+bw/2,y+BOXHEAD/2+1); });
+    var by=y+BOXHEAD, bh=BOXH-BOXHEAD;
+    function fitImg(im,cx,cy,mw,mh){ if(!im) return; var k=Math.min(mw/im.width,mh/im.height,1.6); var w=im.width*k,h=im.height*k; x.drawImage(im,cx-w/2,cy-h/2,w,h); }
+    function small(t,cx,yy){ x.font="400 15px "+SANS; x.fillStyle="#4B5C55"; x.textAlign="center"; x.fillText(t,cx,yy); }
+    function waitT(t,cx){ x.font="400 18px "+SANS; x.fillStyle="#9AA3A0"; x.textAlign="center"; x.fillText(t,cx,by+bh/2); }
+    var c1=P+bw/2, c2=P+bw*1.5, c3=P+bw*2.5;
+    if(I.by){ fitImg(I.by,c1,by+58,bw-40,90); small(r.by,c1,by+bh-46); } else { x.font="700 22px "+SERIF; x.fillStyle="#14251F"; x.textAlign="center"; x.fillText(r.by,c1,by+66); }
+    small(fmt(r.at),c1,by+bh-20);
+    if(approvedLike){
+      fitImg(I.boss,c2,by+58,bw-40,90);
+      if(I.seal){ var sw2=S.seal?150:92, sh2=sw2*I.seal.height/I.seal.width; x.save(); x.globalAlpha=.9; x.translate(c2+bw/2-sw2/2-4,by+bh-sh2/2-34); x.rotate(-6*Math.PI/180); x.drawImage(I.seal,-sw2/2,-sh2/2,sw2,sh2); x.restore(); }
+      small(fmt(r.approvedAt),c2,by+bh-20);
+    } else if(I.rej){ fitImg(I.rej,c2,by+bh/2-8,bw-60,110); if(r.status==="rejected") small(fmt(r.rejectedAt),c2,by+bh-20); }
+    else waitT("等待核准",c2);
+    if(r.status==="paid"){ if(I.paid){ fitImg(I.paid,c3,by+58,bw-40,90); small(r.paidBy,c3,by+bh-46); } else { x.font="700 22px "+SERIF; x.fillStyle="#14251F"; x.textAlign="center"; x.fillText(r.paidBy,c3,by+66); } small(fmtD(r.paidAt)+" 付款",c3,by+bh-20); }
+    else waitT(r.status==="approved"?"待付款":"—",c3);
+    return cv;
+  });
+  function rr(x,a,b,w,h,rad){ x.beginPath(); x.moveTo(a+rad,b); x.arcTo(a+w,b,a+w,b+h,rad); x.arcTo(a+w,b+h,a,b+h,rad); x.arcTo(a,b+h,a,b,rad); x.arcTo(a,b,a+w,b,rad); x.closePath(); }
 }
 function slipImage(){
-  var r=reqById(S.detail), el=document.querySelector(".slip"); if(!r||!el||S.imgBusy) return;
+  var r=reqById(S.detail); if(!r||S.imgBusy) return;
   S.imgBusy=true; var b=$("btn-img"); if(b) b.innerHTML='<span class="spin"></span> 產生中…';
   function done(){ S.imgBusy=false; var b2=$("btn-img"); if(b2) b2.textContent="存成圖片"; }
-  loadH2C().then(function(){ return window.html2canvas(el,{scale:2, backgroundColor:"#FFFFFF", useCORS:true, logging:false}); })
-    .then(function(cv){
+  drawSlip(r).then(function(cv){
       var name="請款單_"+r.no+"_"+String(r.payee).replace(/[\\/:*?"<>|\s]+/g,"").slice(0,20)+".png", url=cv.toDataURL("image/png");
       cv.toBlob(function(bl){
         if(bl){ try{ dlUrl=URL.createObjectURL(bl); }catch(e){ dlUrl=""; } }
         openViewer(url, "手機：長按圖片可以存到相簿或傳 LINE", dlUrl||url, name); done();
       },"image/png");
-    }, function(){ done(); S.msg="圖片產生失敗，請檢查網路後再試一次。"; render(); });
+    }, function(){ done(); S.msg="圖片產生失敗，請再試一次。"; render(); });
 }
 
 /* 啟動 */
